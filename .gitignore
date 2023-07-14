@@ -6,9 +6,12 @@ dspbptk
 *.lib
 
 *.bin
-*.txt
 *.json
 
 *.zip
 *.rar
 *.7z
+
+/.idea/
+/cmake-build-*/
+/build/
