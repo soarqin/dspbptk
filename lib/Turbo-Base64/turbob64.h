@@ -1,6 +1,6 @@
 /**
-    Copyright (C) powturbo 2016-2022
-    GPL v3 License
+    Copyright (C) powturbo 2016-2023
+    SPDX-License-Identifier: GPL v3 License
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,12 +24,15 @@
 // Turbo-Base64 - C/C++ include header
 #ifndef _TURBOB64_H_
 #define _TURBOB64_H_
+
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define TB64_VERSION 100
-//---------------------- base64 API functions ----------------------------------
+//---------------------- Turbo-Base64 API functions ----------------------------------
 // return the base64 buffer length after encoding
 size_t tb64enclen(size_t inlen);
 
@@ -86,7 +89,7 @@ size_t tb64v128adec( const unsigned char *__restrict in, size_t inlen, unsigned 
 size_t tb64v256enc(  const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out);
 size_t tb64v256dec(  const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out);
 
-// avx512
+// avx512_vbmi
 size_t tb64v512enc(  const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out);
 size_t tb64v512dec(  const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out);
 

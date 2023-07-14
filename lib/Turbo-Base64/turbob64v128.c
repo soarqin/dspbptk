@@ -1,6 +1,6 @@
 /**
-    Copyright (C) powturbo 2016-2022
-    GPL v3 License
+    Copyright (C) powturbo 2016-2023
+    SPDX-License-Identifier: GPL v3 License
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,10 +46,8 @@
 #include <arm_neon.h>
   #endif
   
-#define UA_MEMCPY
-#include "conf.h"
-#include "turbob64.h"
 #include "turbob64_.h"
+#include "turbob64.h"
 
 #ifdef __ARM_NEON  //----------------------------------- arm neon --------------------------------
 
@@ -91,7 +89,7 @@ static inline uint8x16x4_t vld1q_u8_x4(const uint8_t *lut) {
 	ov.val[2] = vorrq_u8(vshlq_n_u8(iv.val[2], 6),            iv.val[3]    );\
 }
 
-#define _MM_B64CHK(iv, xv) xv = vorrq_u8(xv, vorrq_u8(vorrq_u8(iv.val[0], iv.val[1]), vorrq_u8(iv.val[2], iv.val[3])))
+#define _B64CHK128(iv, xv) xv = vorrq_u8(xv, vorrq_u8(vorrq_u8(iv.val[0], iv.val[1]), vorrq_u8(iv.val[2], iv.val[3])))
 
 size_t tb64v128dec(const unsigned char *in, size_t inlen, unsigned char *out) {
   const unsigned char *ip;
@@ -107,11 +105,11 @@ size_t tb64v128dec(const unsigned char *in, size_t inlen, unsigned char *out) {
 	uint8x16x3_t ov0,ov1; 
     B64D(iv0, ov0);
       #if DN > 128
-	CHECK1(_MM_B64CHK(iv0,xv));
+	CHECK1(_B64CHK128(iv0,xv));
       #else
-	CHECK0(_MM_B64CHK(iv0,xv));
+	CHECK0(_B64CHK128(iv0,xv));
       #endif
-	B64D(iv1, ov1); CHECK1(_MM_B64CHK(iv1,xv));
+	B64D(iv1, ov1); CHECK1(_B64CHK128(iv1,xv));
       #if DN > 128
     iv0 = vld4q_u8(ip+128);
     iv1 = vld4q_u8(ip+192);              
@@ -119,11 +117,11 @@ size_t tb64v128dec(const unsigned char *in, size_t inlen, unsigned char *out) {
 	vst3q_u8(op,    ov0);       
 	vst3q_u8(op+48, ov1);                                                                                                                                                                       
       #if DN > 128
-	B64D(iv0,ov0);	CHECK1(_MM_B64CHK(iv0,xv));
+	B64D(iv0,ov0);	CHECK1(_B64CHK128(iv0,xv));
 	B64D(iv1,ov1); 
 	vst3q_u8(op+ 96, ov0);       
 	vst3q_u8(op+144, ov1);                                                                                                                                                                       
-	CHECK0(_MM_B64CHK(iv1,xv));
+	CHECK0(_B64CHK128(iv1,xv));
       #endif
   }
   for(                 ; ip != in+(inlen&~(64-1)); ip += 64, op += (64/4)*3) { 	
@@ -132,9 +130,9 @@ size_t tb64v128dec(const unsigned char *in, size_t inlen, unsigned char *out) {
 	vst3q_u8(op, ov);                                                                                                                          
 	CHECK0(xv = vorrq_u8(xv, vorrq_u8(vorrq_u8(iv.val[0], iv.val[1]), vorrq_u8(iv.val[2], iv.val[3]))));
   }
-  size_t rc;
-  if(!(rc=tb64xdec(ip, inlen&(64-1), op)) || vaddvq_u8(vshrq_n_u8(xv,7))) return 0; //decode all
-  return (op-out)+rc; 
+  size_t rc = 0, r = inlen&(64-1); 
+  if(r && !(rc=tb64xdec(ip, r, op)) || vaddvq_u8(vshrq_n_u8(xv,7))) return 0; }//decode all
+  return (op - out) + rc; 
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -188,35 +186,33 @@ size_t tb64v128enc(const unsigned char* in, size_t inlen, unsigned char *out) {
 
 #elif defined(__SSSE3__) //----------------- SSSE3 / SSE4.1 / AVX (derived from the AVX2 functions ) -----------------------------------------------------------------
                 //--------------- decode -------------------
-#define DS128(_i_) {\
-  __m128i iv2 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64   )),\
-          iv3 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+16));\
-\
-  __m128i ov0,shifted0; MM_MAP8TO6(iv0, shifted0,delta_asso, delta_values, ov0); MM_PACK8TO6(ov0, cpv);\
-  __m128i ov1,shifted1; MM_MAP8TO6(iv1, shifted1,delta_asso, delta_values, ov1); MM_PACK8TO6(ov1, cpv);\
-  _mm_storeu_si128((__m128i*)(op+_i_*48)   , ov0);\
-  _mm_storeu_si128((__m128i*)(op+_i_*48+12), ov1);\
-  CHECK0(MM_B64CHK(iv0, shifted0, check_asso, check_values, vx));\
-  CHECK1(MM_B64CHK(iv1, shifted1, check_asso, check_values, vx));\
-\
-          iv0 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+32));\
-          iv1 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+48));\
-\
-  __m128i ov2,shifted2; MM_MAP8TO6(iv2, shifted2,delta_asso, delta_values, ov2); MM_PACK8TO6(ov2, cpv);\
-  __m128i ov3,shifted3; MM_MAP8TO6(iv3, shifted3,delta_asso, delta_values, ov3); MM_PACK8TO6(ov3, cpv);\
+#define DS64(_i_) {\
+  __m128i iv0 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64   )),\
+          iv1 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+16));\
+  \
+  __m128i ou0,shifted0; BITMAP128V8_6(iu0, shifted0,delta_asso, delta_values, ou0); BITPACK128V8_6(ou0, cpv);\
+  __m128i ou1,shifted1; BITMAP128V8_6(iu1, shifted1,delta_asso, delta_values, ou1); BITPACK128V8_6(ou1, cpv);\
+  _mm_storeu_si128((__m128i*)(op+_i_*48)   , ou0);\
+  _mm_storeu_si128((__m128i*)(op+_i_*48+12), ou1);\
+  CHECK0(B64CHK128(iu0, shifted0, check_asso, check_values, vx));\
+  CHECK1(B64CHK128(iu1, shifted1, check_asso, check_values, vx));\
+  \
+          iu0 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+32));\
+          iu1 = _mm_loadu_si128((__m128i *)(ip+32+_i_*64+48));\
+  \
+  __m128i ov2,shifted2; BITMAP128V8_6(iv0, shifted2,delta_asso, delta_values, ov2); BITPACK128V8_6(ov2, cpv);\
+  __m128i ov3,shifted3; BITMAP128V8_6(iv1, shifted3,delta_asso, delta_values, ov3); BITPACK128V8_6(ov3, cpv);\
   _mm_storeu_si128((__m128i*)(op+_i_*48+24), ov2);\
   _mm_storeu_si128((__m128i*)(op+_i_*48+36), ov3);\
-  CHECK1(MM_B64CHK(iv2, shifted2, check_asso, check_values, vx));\
-  CHECK1(MM_B64CHK(iv3, shifted3, check_asso, check_values, vx));\
+  CHECK1(B64CHK128(iv0, shifted2, check_asso, check_values, vx));\
+  CHECK1(B64CHK128(iv1, shifted3, check_asso, check_values, vx));\
 }	
 
 size_t T2(FUNPREF, dec)(const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out) {
-  if(!inlen || (inlen&3)) return 0; 
-  if(inlen <= 28) return _tb64xd(in, inlen, out);
+  if(inlen&3) return 0;                                              
 
-  const unsigned char *ip = in;									
+  const unsigned char *ip = in, *in_ = in+inlen;									  
         unsigned char *op = out;		
-  #define DN 128
   __m128i vx = _mm_setzero_si128();	  
   const __m128i delta_asso   = _mm_setr_epi8(0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,  0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x0f);
   const __m128i delta_values = _mm_setr_epi8(0x00, 0x00, 0x00, 0x13, 0x04, 0xbf, 0xbf, 0xb9,  0xb9, 0x00, 0x10, 0xc3, 0xbf, 0xbf, 0xb9, 0xb9);
@@ -225,36 +221,40 @@ size_t T2(FUNPREF, dec)(const unsigned char *__restrict in, size_t inlen, unsign
   const __m128i check_values = _mm_setr_epi8(0x80, 0x80, 0x80, 0x80, 0xcf, 0xbf, 0xd5, 0xa6,  0xb5, 0x86, 0xd1, 0x80, 0xb1, 0x80, 0x91, 0x80);    
     #endif
   const __m128i          cpv = _mm_set_epi8( -1, -1, -1, -1, 12, 13, 14,  8,    9, 10,  4,  5,  6,  0,  1,  2);
-  if(inlen > 28+64) { 																			
-    __m128i iv0 = _mm_loadu_si128((__m128i *) ip);
-    __m128i iv1 = _mm_loadu_si128((__m128i *)(ip+16));	     									
-    for(; ip < in+inlen-(32+DN); ip += DN, op += DN*3/4) { DS128(0); DS128(1);  PREFETCH(ip,384,0);	}
-	for(; ip < in+inlen-(28+64); ip += 64, op += 64*3/4)   DS128(0); 						
-  }
-  for(; ip < (in+inlen)-16-4; ip += 16, op += 16*3/4) { 											
+  
+  if(inlen >= 32+64+4) {
+    __m128i iu0 = _mm_loadu_si128((__m128i *) ip    ),
+            iu1 = _mm_loadu_si128((__m128i *)(ip+16));	     									
+    for(; ip < in_-(32+2*64+4); ip += 128, op += 128*3/4) { DS64(0); DS64(1); }						
+    if(   ip < in_-(32+  64+4)) { DS64(0); ip += 64, op += 64*3/4; }						
+  } else if(!inlen) return 0;
+  
+  for(; ip < in_-(16+4); ip += 16, op += 16*3/4) { 											
     __m128i iv = _mm_loadu_si128((__m128i *)ip), ov, shifted0;     								
-	MM_MAP8TO6(iv, shifted0,delta_asso, delta_values, ov);
-	MM_PACK8TO6(ov, cpv);
+	BITMAP128V8_6(iv, shifted0, delta_asso, delta_values, ov);
+	BITPACK128V8_6(ov, cpv);
     _mm_storeu_si128((__m128i*) op, ov); 														                                              
-    CHECK1(MM_B64CHK(iv, shifted0, check_asso, check_values, vx));
+    CHECK0(B64CHK128(iv, shifted0, check_asso, check_values, vx));
   } 
 
-  size_t rc;
-  if(!(rc = _tb64xd(ip, inlen-(ip-in), op)) || _mm_movemask_epi8(vx)) return 0; 
-  return (op-out)+rc;
+  unsigned cx =  _mm_movemask_epi8(vx);
+  size_t rc = 0, r = in_ - ip;
+  if(r && !(rc = _tb64xd(ip, r, op)) || cx) 
+	return 0;
+  return (op - out)+rc;
 }
 
                          //---------------------- encode ------------------
-#define ES128(_i_) {\
+#define ES64(_i_) {\
       __m128i v0 = _mm_loadu_si128((__m128i*)(ip+24+_i_*48+ 0)),\
               v1 = _mm_loadu_si128((__m128i*)(ip+24+_i_*48+12));\
 \
               u0 = _mm_shuffle_epi8(u0, shuf);\
               u1 = _mm_shuffle_epi8(u1, shuf);\
-              u0 = mm_unpack6to8(u0);\
-              u1 = mm_unpack6to8(u1);\
-              u0 = mm_map6to8(u0);\
-              u1 = mm_map6to8(u1);\
+              u0 = bitunpack128v8_6(u0);\
+              u1 = bitunpack128v8_6(u1);\
+              u0 = bitmap128v8_6(u0);\
+              u1 = bitmap128v8_6(u1);\
       _mm_storeu_si128((__m128i*)(op+_i_*64+ 0), u0);\
       _mm_storeu_si128((__m128i*)(op+_i_*64+16), u1);\
 \
@@ -263,41 +263,42 @@ size_t T2(FUNPREF, dec)(const unsigned char *__restrict in, size_t inlen, unsign
 \
               v0 = _mm_shuffle_epi8(v0, shuf);\
               v1 = _mm_shuffle_epi8(v1, shuf);\
-              v0 = mm_unpack6to8(v0);\
-              v1 = mm_unpack6to8(v1); \
-              v0 = mm_map6to8(v0);\
-              v1 = mm_map6to8(v1);\
+              v0 = bitunpack128v8_6(v0);\
+              v1 = bitunpack128v8_6(v1); \
+              v0 = bitmap128v8_6(v0);\
+              v1 = bitmap128v8_6(v1);\
       _mm_storeu_si128((__m128i*)(op+_i_*64+32), v0);\
       _mm_storeu_si128((__m128i*)(op+_i_*64+48), v1);\
-}
+}  
 
 size_t T2(FUNPREF, enc)(const unsigned char *__restrict in, size_t inlen, unsigned char *__restrict out) { 
-  const unsigned char *ip = in; 
+  const size_t        outlen = TB64ENCLEN(inlen); 
+  const unsigned char *ip = in, *out_ = out+outlen; 
         unsigned char *op = out;
-          size_t   outlen = TB64ENCLEN(inlen); 
 
-  #define EN 128
   const __m128i shuf = _mm_set_epi8(10,11,  9,10,  7, 8, 6, 7,    4, 5, 3, 4, 1, 2, 0, 1);
-  if(outlen > 32+64) {
-      __m128i u0 = _mm_loadu_si128((__m128i*) ip),   
+  
+  if(outlen >= (24+48+4)*4/3) {
+      __m128i u0 = _mm_loadu_si128((__m128i*) ip),
               u1 = _mm_loadu_si128((__m128i*)(ip+12)); 
-    for(; op < (out+outlen)-(32+EN); op += EN, ip += EN*3/4) { ES128(0); ES128(1); /*PREFETCH(ip,256,0);*/ }
-    for(; op < (out+outlen)-(32+64); op += 64, ip += 64*3/4)   ES128(0); 
+    for(; op < out_-(24+2*48+4)*4/3; op += 128, ip += 128*3/4) { ES64(0); ES64(1); }  
+    if(   op < out_-(24+  48+4)*4/3) { ES64(0); op +=  64; ip +=  64*3/4; }		          						   
   }
-  for(; op < out+(outlen-16); op += 16, ip += 16*3/4) {
+  
+  for(; op < out_- (12+4)*4/3; op += 16, ip += 16*3/4) {
 	__m128i v = _mm_loadu_si128((__m128i*)ip);
             v = _mm_shuffle_epi8(v, shuf);
-            v =  mm_unpack6to8(v);
-            v =  mm_map6to8(v);
+            v =  bitunpack128v8_6(v);
+            v =  bitmap128v8_6(v);
     _mm_storeu_si128((__m128i*)op, v);
-  }
-  EXTAIL();
+  }					
+  
+  EXTAIL(3); 															 							 
   return outlen;
 }
 #endif
-
 //-------------------------------------------------------------------------------------------------------------------
-#if !defined(__AVX__) //include only 1 time
+#ifndef __AVX__ //include only 1 time
 size_t tb64memcpy(const unsigned char* in, size_t inlen, unsigned char *out) {
   memcpy(out, in, inlen);
   return inlen;
@@ -466,19 +467,19 @@ void tb64ini(unsigned id, unsigned isshort) {
   tb64set++;   
   i = id?id:cpuisa();
     #if defined(__i386__) || defined(__x86_64__)
-      #ifdef USE_AVX512
+      #ifndef NAVX512
   if(i >= IS_AVX512) {  
-    _tb64e = i >= (IS_AVX512|AVX512VL)?tb64v256enc:tb64v256enc; 
-    _tb64d = tb64v512dec;
+    _tb64e = i >= (IS_AVX512|AVX512VBMI)?tb64v512enc:tb64v256enc; 
+    _tb64d = i >= (IS_AVX512|AVX512VBMI)?tb64v512dec:tb64v256dec;
   } else 
       #endif
-      #ifndef NO_AVX2
+      #ifndef NAVX2
   if(i >= IS_AVX2) {  
     _tb64e = isshort?_tb64v256enc:tb64v256enc; 
     _tb64d = isshort?_tb64v256dec:tb64v256dec;
   } else 
       #endif
-      #ifndef NO_AVX
+      #ifndef NAVX
     if(i >= IS_AVX) {  
     _tb64e = tb64v128aenc; 
     _tb64d = tb64v128adec;
@@ -486,7 +487,7 @@ void tb64ini(unsigned id, unsigned isshort) {
       #endif
     #endif
     #if defined(__i386__) || defined(__x86_64__) || defined(__ARM_NEON) || defined(__powerpc64__)
-      #ifndef NO_SSE
+      #ifndef NSSE
   if(i >= IS_SSSE3) {  
     _tb64e = tb64v128enc; 
     _tb64d = tb64v128dec;

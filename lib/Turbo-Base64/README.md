@@ -1,9 +1,7 @@
-Turbo Base64:Fastest Base64 Scalar+SIMD
-=========================================================================================
+## Turbo Base64:Fastest Base64 SSE/AVX2/AVX512/Neon/Altivec
+[![Build ubuntu](https://github.com/powturbo/Turbo-Base64/actions/workflows/build.yaml/badge.svg)](https://github.com/powturbo/Turbo-Base64/actions/workflows/build.yaml)
 
-###### **Fastest Base64 SIMD** Encoding library
- * :new: (2022.02) the fastest now more faster
- * :new: (2022.02) improved speed for short strings
+##### **Fastest Base64 SIMD** Encoding library
  * 100% C (C++ headers), as simple as memcpy
  * No other base64 library encode or decode faster
  * :sparkles: **Scalar** can be faster than other SSE or ARM Neon based base64 libraries
@@ -12,16 +10,21 @@ Turbo Base64:Fastest Base64 Scalar+SIMD
  * TurboBase64 AVX2 decoding up to ~2x faster than other AVX2 libs.
  * TurboBase64 is 3-4 times faster than other libs for short strings
  * Fastest **ARM Neon** base64
- * :+1: Dynamic CPU detection and **JIT scalar/sse/avx/avx2** switching
+ * :new:(2023.04) avx512 - 2x faster than avx2, faster than any other implementation
+ * :+1: Dynamic CPU detection and **JIT scalar/sse/avx/avx2/avx512** switching
  * Base64 robust **error checking**, optimized for **long+short** strings
- * Portable library, 32/64 bits, **SSE/AVX/AVX2**, **ARM Neon**, **Power9 Altivec**
+ * Portable library, 32/64 bits, **SSE/AVX/AVX2/AVX512**, **ARM Neon**, **Power9 Altivec**
  * OS:Linux amd64, arm64, Power9, MacOs+Apple M1, s390x. Windows: Mingw, visual c++
  * Big endian + Little endian
  * Ready and simple to use library, no armada of files, no hassles dependencies
- * **LICENSE GPL 3**
+ * **LICENSE GPL 3** . Commercial license available. Contact us at powturbo [_AT_] gmail [_DOT_] com
 <p>
-
+	
 ------------------------------------------------------------------------
+	
+Download Turbo-Base64 executable benchmark tb64app from 
+[releases](https://github.com/powturbo/Turbo-Base64/releases/tag/2023.04),
+extract the files and type "tb64app"</br>
 
 ## Benchmark incl. the best SIMD Base64 libs:
 - Single thread
@@ -29,6 +32,32 @@ Turbo Base64:Fastest Base64 Scalar+SIMD
 - Small file + realistic and practical (no PURE cache) benchmark 
 - Unlike other benchmarks, the best of the best scalar+simd libraries are included
 - all libraries with the latest version
+
+#### Benchmark AMD CPU: AMD Ryzen 9 7950X @ 4,50 GHz, DDR5 6000 CL30 - gcc-12.2
+|E Size|ratio%|E MB/s|D MB/s|1,000,000 bytes - 2023.07 |
+|--------:|-----:|--------:|--------:|----------------|
+|1333336|133.33%|**77619**|**76716**|**8:tb64v512vbmi**|
+|1333336|133.33%|41325| 48783| 7:_tb64v256 avx2| 
+|1333336|133.33%|45292| 46665| 5:tb64v256  avx2|
+|1000000|100.00%|37047| 31694|10:memcpy        | 
+|1333336|133.33%|25077| 28537| 4:tb64v128a avx | 
+|1333336|133.33%|24375| 27880| 3:tb64v128      | 
+|1333336|133.33%| 9513|  6908| 2:tb64x         | 
+|1333336|133.33%| 9513|  5975| 9:_tb64x        | 
+|1333336|133.33%| 4914|  5182| 1:tb64s         | 
+
+
+|E Size|ratio%|E MB/s|D MB/s|10,000 bytes - 2023.07 |
+|--------:|-----:|--------:|--------:|----------------|
+|13336|133.36%|**89079**|**92006**|**8:tb64v512vbmi**|
+|10000|100.00%|84418|  85703|10:memcpy            |
+|13336|133.36%|34963|  46216| 7:_tb64v256 avx2    |
+|13336|133.36%|40722|  44552| 5:tb64v256  avx2    |
+|13336|133.36%|22601|  27298| 4:tb64v128a avx     |
+|13336|133.36%|21113|  26930| 3:tb64v128          |
+|13336|133.36%| 9648|   6809| 2:tb64x             |
+|13336|133.36%| 9626|   5599| 9:_tb64x            |
+|13336|133.36%| 4937|   5184| 1:tb64s             |
 
 #### Benchmark Intel CPU: i7-9700k 3.6GHz gcc 11.2
 |E Size|ratio%|E MB/s|D MB/s|Name|50,000 bytes - 2022.02 |
@@ -96,7 +125,7 @@ Turbo Base64:Fastest Base64 Scalar+SIMD
 <p>
 
 ## Compile: (Download or clone Turbo Base64 SIMD)
-        git clone git://github.com/powturbo/TurboBase64.git
+        git clone https://github.com/powturbo/Turbo-Base64.git
         make
 
 ## Usage: (Benchmark App)
@@ -150,5 +179,5 @@ Turbo Base64:Fastest Base64 Scalar+SIMD
   * :green_book:[Faster Base64 Encoding and Decoding Using AVX2 Instructions](https://arxiv.org/abs/1704.00605)
   * :green_book:[RFC 4648:The Base16, Base32, and Base64 Data Encodings](https://tools.ietf.org/html/rfc4648)
 
-Last update: 21 FEB 2022
+Last update: 20 JUN 2023
 

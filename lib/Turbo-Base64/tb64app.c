@@ -1,6 +1,6 @@
 /**
-    Copyright (C) powturbo 2016-2022
-    GPL v3 License
+    Copyright (C) powturbo 2016-2023
+    SPDX-License-Identifier: GPL v3 License
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ int memcheck(unsigned char *in, unsigned n, unsigned char *cpy) {
     }
   return 0;
 }
-
+ 
 #define ID_MEMCPY 10
 unsigned bench(unsigned char *in, unsigned n, unsigned char *out, unsigned char *cpy, int id) { 
   unsigned l = 0,m=tb64enclen(n);
@@ -133,16 +133,19 @@ unsigned bench(unsigned char *in, unsigned n, unsigned char *out, unsigned char 
       #if defined(__i386__) || defined(__x86_64__)
     case 4:if(cpuini(0)>=0x50) { TMBENCH("",l=tb64v128aenc(in, n, out),m); pr(l,n); TMBENCH2(" 4:tb64v128a avx  ", tb64v128adec(out, l, cpy), l); } break;
     case 5:if(cpuini(0)>=0x60) { TMBENCH("",l=tb64v256enc( in, n, out),m); pr(l,n); TMBENCH2(" 5:tb64v256  avx2 ", tb64v256dec( out, l, cpy), l); } break;
-    case 7:if(cpuini(0)>=0x60) { TMBENCH("",l=_tb64v256enc(in, n, out),m); pr(l,n); TMBENCH2(" 7:_tb64v256  avx2", _tb64v256dec(out, l, cpy), l); } break;
-        #ifdef USE_AVX512
-    case 8:if(cpuini(0)>=0x800){ TMBENCH("",l=tb64v512enc( in, n, out),m); pr(l,n); TMBENCH2(" 8:tb64v512       ", tb64v512dec( out, l, cpy), l); } break;
+    case 7:if(cpuini(0)>=0x60) { TMBENCH("",l=_tb64v256enc(in, n, out),m); pr(l,n); TMBENCH2(" 7:_tb64v256 avx2 ", _tb64v256dec(out, l, cpy), l); } break;
+        #ifndef NAVX512                                                            // +VBMI
+    case 8:{ unsigned c = cpuini(0); 
+      if(c>=(0x800|0x200)) { TMBENCH("",  l=tb64v512enc(in, n, out),m); pr(l,n); TMBENCH2(" 8:tb64v512vbmi   ", tb64v512dec( out,l,cpy),l); } 
+      //else if(c>=0x800)    { TMBENCH("",  l=tb64v256enc(in, n, out),m); pr(l,n); TMBENCH2(" 8:tb64v512       ", tb64v512dec0(out, l, cpy),l); } 
+    } break;
         #endif 
 	  #endif
     case 9:                      TMBENCH("",l=tb64xenc(    in, n, out),m); pr(l,n); TMBENCH2(" 9:_tb64x         ", _tb64xd(     out, l, cpy), l);   break;
-      #ifdef BASE64
-    #include "xtb64test.c"
-	  #endif
     case ID_MEMCPY:              TMBENCH( "", memcpy(out,in,m) ,m);        pr(n,n); TMBENCH2("10:memcpy         ", memcpy(cpy,out,n), n);  l = n;   break;
+      #ifdef BASE64
+    #include "xtb64test_.c"
+      #endif
     default: return 0;
   }
   if(l) { printf(" %10d\n", n); memcheck(in,n,cpy); }
@@ -150,7 +153,7 @@ unsigned bench(unsigned char *in, unsigned n, unsigned char *out, unsigned char 
 }
 
 void usage(char *pgm) {
-  fprintf(stderr, "\nTurboBase64 Copyright (c) 2016-2022 Powturbo %s\n", __DATE__);
+  fprintf(stderr, "\nTurboBase64 Copyright (c) 2016-2023 Powturbo %s\n", __DATE__);
   fprintf(stderr, "Usage: %s [options] [file]\n", pgm);
   fprintf(stderr, " -e#      # = function ids separated by ',' or ranges '#-#' (default='1-%d')\n", ID_MEMCPY);
   fprintf(stderr, " -B#s     # = max. benchmark filesize (default 120Mb)\n");
@@ -170,36 +173,52 @@ void usage(char *pgm) {
   exit(0);
 } 
 
+
+void fuzzcheck(unsigned char *_in, unsigned insize, unsigned char *_out, unsigned outsize, unsigned char *_cpy, unsigned fuzz) {
+  unsigned char *in = _in, *out = _out, *cpy = _cpy;                            printf(" Fuzz OK. Waiting seg. fault\n");fflush(stdout);
+  unsigned      n;
+  for(n = 0; n <= 10099; n++) {  												
+    unsigned m = tb64enclen(n); 
+    if(fuzz & 2) { cpy = (_cpy+insize) - n, out = (_out+outsize) - m;           printf("O%x ", out[m]);fflush(stdout); 
+                                                                                printf("C%x ", cpy[n]);fflush(stdout); 
+    }
+    if(fuzz & 1) { in  = (_in +insize) - n;                                     printf("I%x ", in[n]); fflush(stdout); }
+  }                      														printf("Fuzztest not reliable. Reapeat until seg. fault\n");fflush(stdout);
+}
+
 void fuzztest(unsigned id, unsigned char *_in, unsigned insize, unsigned char *_out, unsigned outsize, unsigned char *_cpy, unsigned fuzz) {
   unsigned char *in = _in, *out = _out, *cpy = _cpy;
   unsigned      s,n,i,l = 0;
-                                                                                printf(".");fflush(stdout);
-  for(n = 0; n <= 10000; n++) {  												
+                                                                                printf("[id=%u", id);fflush(stdout);
+  for(n = 0; n <= 10099; n++) {  																					
     unsigned m = tb64enclen(n); 
-    if(fuzz & 1) in  = (_in +insize) - n;                                       // move the i/o buffers to the end, this will normally cause a seg fault
-    if(fuzz & 2) out = (_out+outsize) - m, cpy = (_cpy+insize) - n;             // by reading/writing beyond the buffer end
+    if(fuzz & 1) in  = (_in +insize) - n;                                       // move the i/o buffers to the end, this will normally (but not always) cause a seg fault
+    if(fuzz & 2) cpy = (_cpy+insize) - n, out = (_out+outsize) - m;             // by reading/writing beyond the buffer end
     			
-    srand(time(0));
+    srand(time(0));                                                             
 	for(i = 0; i < n; i++)                                                      // Generate a random string 
 	  in[i] = rand()&0xff;  
     memrcpy(cpy, in, n);   														// copy input reversed 
     
     switch(id) {
-      case  1:                       l = tb64senc(    in, n, out); if(l != m) die("Fatal error n=%u\n", n); tb64sdec(    out, l, cpy);   break;
-      case  2:                       l = tb64xenc(    in, n, out); if(l != m) die("Fatal error n=%u\n", n); tb64xdec(    out, l, cpy);   break;
-      case  3: if(cpuini(0)>=0x33) { l = tb64v128enc( in, n, out); if(l != m) die("Fatal error n=%u\n", n); tb64v128dec( out, l, cpy); } break;
-      case  4: if(cpuini(0)>=0x50) { l = tb64v128aenc(in, n, out); if(l != m) die("Fatal error n=%u\n", n); tb64v128adec(out, l, cpy); } break;
-      case  5: if(cpuini(0)>=0x60) { l = tb64v256enc( in, n, out); if(l != m) die("Fatal error n=%u\n", n); tb64v256dec( out, l, cpy); } break;
-      case  7: if(cpuini(0)>=0x60) { l = _tb64v256enc(in, n, out); if(l != m) die("Fatal error n=%u\n", n); _tb64v256dec(out, l, cpy); } break;
-        #ifdef BASE64
-      case 28: l = crzy64_encode(out, in, n);/*if(l != m) die("Fatal error n=%u\n",n);*/ crzy64_decode(cpy, out, l); break;
-	  case 19: if(cpuini(0)>=0x60) { size_t outlen; base64_encode((const char*)in, n, (char*)out, &outlen, BASE64_FORCE_AVX2); base64_decode((const char*)out, l, (char*)cpy, &outlen, BASE64_FORCE_AVX2);} break;
-	    #endif
-	  default: return;
-	}                                                                           
-	if(l && memcheck(in,n,cpy)) exit(-1); 										
-  }                                                                             printf("id=%u OK ", id);fflush(stdout);
+      case  1:                       l = tb64senc(    in, n, out); if(l != m) die("Error n=%u\n", n); tb64sdec(    out, l, cpy);   break;
+      case  2:                       l = tb64xenc(    in, n, out); if(l != m) die("Error n=%u\n", n); tb64xdec(    out, l, cpy);   break;
+      case  3: if(cpuini(0)>=0x33) { l = tb64v128enc( in, n, out); if(l != m) die("Error n=%u\n", n); tb64v128dec( out, l, cpy); } break;
+      case  4: if(cpuini(0)>=0x50) { l = tb64v128aenc(in, n, out); if(l != m) die("Error n=%u\n", n); tb64v128adec(out, l, cpy); } break;
+      case  5: if(cpuini(0)>=0x60) { l = tb64v256enc( in, n, out); if(l != m) die("Error n=%u\n", n); tb64v256dec( out, l, cpy); } break;
+      case  8: if(cpuini(0)>=(0x800|0x200)) { l = tb64v512enc( in, n, out); if(l != m) die("Error n=%u\n", n); tb64v512dec( out, l, cpy); } break;
+      case  11: if(cpuini(0)>=0x60) { l = _tb64v256enc(in, n, out); if(l != m) die("Error n=%u\n", n);_tb64v256dec(out, l, cpy); } break; //unsafe when OVHD=0
+        #ifdef BASE64 // fastbase is unsafe, can reads/writes beyound i/o buffers
+      #include "xtb64fuzz_.c"  
+	#endif
+      default:                                                                  printf("]");fflush(stdout);
+	return;
+    }                                                                           
+    if(l && memcheck(in,n,cpy)) exit(-1); 	                                    									
+  }                                                                             printf(" OK]");fflush(stdout);
 }
+
+int verbose=3;
 
 int main(int argc, char* argv[]) {                              
   unsigned      cmp = 1, bsize = (120*Mb), esize = 4, fno, id=0, fuzz = 0, bid = 0, tst = 0,
@@ -210,7 +229,7 @@ int main(int argc, char* argv[]) {
   int           c, digit_optind = 0, this_option_optind = optind ? optind : 1, option_index = 0;
   static struct option long_options[] = { {"blocsize",  0, 0, 'b'}, {0, 0, 0}  };
   for(;;) {
-    if((c = getopt_long(argc, argv, "B:e:f:I:J:k:m:M:q:T", long_options, &option_index)) == -1) break;
+    if((c = getopt_long(argc, argv, "B:e:f:I:J:k:m:M:q:Tv:", long_options, &option_index)) == -1) break;
     switch(c) {
       case  0 : printf("Option %s", long_options[option_index].name); if(optarg) printf (" with arg %s", optarg);  printf ("\n"); break;                                
       case 'B': bsize = argtoi(optarg,1);                             break;
@@ -228,18 +247,24 @@ int main(int argc, char* argv[]) {
                 else if(!strcasecmp(optarg,"avx2"))   cpuini(0x60); 
                 else if(!strcasecmp(optarg,"avx512")) cpuini(0x78);   break;
       case 'T': tst++;                                                break;
+	  case 'v': verbose = atoi(optarg); break;
       default: 
         usage(argv[0]);
         exit(0); 
     }
   }
   
+  tm_init(tm_Rep, verbose);  
   sprintf(_scmd, "1-%d", ID_MEMCPY);
   tb64ini(0,0); 																printf("detected simd (id=%x->'%s')\n\n", cpuini(0), cpustr(cpuini(0))); 
-
-  if(!(_in  = (unsigned char*)_valloc(insize, 0))) die("malloc error in size=%u\n",  insize);  in  = cpy = _in;
+  unsigned char *tmp1,*tmp2;
+  if(!(_in  = (unsigned char*)_valloc(insize, 0))) die("malloc error in size=%u\n",  insize);  in  = _in;
+  if(!(tmp1 = (unsigned char*)_valloc(insize, 0))) die("malloc error cpy size=%u\n", insize);  
   if(!(_cpy = (unsigned char*)_valloc(insize, 0))) die("malloc error cpy size=%u\n", insize);  cpy = _cpy;
+  if(!(tmp2 = (unsigned char*)_valloc(outsize,0))) die("malloc error cpy size=%u\n", insize);  
   if(!(_out = (unsigned char*)_valloc(outsize,0))) die("malloc error out size=%u\n", outsize); out = _out;
+  _vfree(tmp1, insize); 
+  _vfree(tmp2, outsize);
                                                                                 
   if(tst) {	//------------------------ test + fuzzer (option -T) ----------------------------------------------------------------------------
     char *p = scmd?scmd:_scmd;
@@ -250,9 +275,11 @@ int main(int argc, char* argv[]) {
 	    idx = id;  
       for(i = id; i <= idx; i++) 
 	    fuzztest(i,_in,insize,_out,outsize,_cpy, fuzz);
-    } while(*p++);															    printf("\n");
+	  fuzzcheck(_in,insize,_out,outsize,_cpy, fuzz);
+	
+    } while(*p++);															    printf("fuzz OK\n");
   } else if(argc - optind < 1) { //------------------ bechmark with predefined sizes (option -k#) -------------------------------------------
-    unsigned _size0[] = { 1*KB, 10*KB, 100*KB, 200*KB, 500*KB, 1*MB, 10*MB, 20*MB, 0 }, 
+    unsigned _size0[] = { 1*KB, 10*KB, 50*KB, 100*KB, 200*KB, 500*KB, 1*MB, 10*MB, 20*MB, 0 }, 
 	         _size1[] = { 1, 3, 7, 15, 31, 67, 127, 255, 511, 1*KB, 0 },
              _size2[] = { 12, 15,16,17, 31,32,33, 47,48,50, 63,64,65, 95,96,97, 120, 180, 250, 500, 1*KB, 10*KB, 50*KB, 100*KB, 500*KB, 1*MB, 0 }, 
              _size3[] = { 100, 200, 1*KB, 100*KB, 1*MB, 0 }, 
@@ -294,7 +321,6 @@ int main(int argc, char* argv[]) {
       fclose(fi);
 	  m = tb64enclen(n);
       if(!n) exit(0);
-      tm_init(tm_Rep, tm_Rep2);  
 																				printf("  E MB/s    size     ratio    D MB/s   function\n");  
       char *p = scmd?scmd:_scmd;
       do { 

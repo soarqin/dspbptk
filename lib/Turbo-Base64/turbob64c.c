@@ -1,29 +1,20 @@
 /**
-Copyright (c) 2016-2022, Powturbo
-All rights reserved.
+    Copyright (C) powturbo 2016-2023
+    SPDX-License-Identifier: GPL v3 License
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
 
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     - homepage : https://sites.google.com/site/powturbo/
     - github   : https://github.com/powturbo
@@ -31,10 +22,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     - email    : powturbo [_AT_] gmail [_DOT_] com
 **/
 // Turbo-Base64: Scalar encode
-#define UA_MEMCPY
-#include "conf.h"
-#include "turbob64.h"
 #include "turbob64_.h"
+#include "turbob64.h"
 
 size_t tb64enclen(size_t n) { return TB64ENCLEN(n); }
  
@@ -325,15 +314,15 @@ const unsigned short tb64lute[1<<12] = {
 }
 
 size_t tb64xenc(const unsigned char *in, size_t inlen, unsigned char *out) {
-  const  unsigned char *ip    = in;
-         unsigned char *op    = out;
          size_t        outlen = TB64ENCLEN(inlen);
+  const  unsigned char *ip    = in, *out_ = out + outlen;
+         unsigned char *op    = out;
   
   if(outlen > 4+8) {
 	unsigned u = ctou32(ip);
-    for(; op < (out+outlen)-(4+64); op += 64, ip += (64/4)*3) { EX(0); EX(1); EX( 2); EX( 3); EX( 4); EX( 5); EX( 6); EX( 7); PREFETCH(ip,384, 0); }
-    for(; op < (out+outlen)-(4+ 8); op +=  8, ip += ( 8/4)*3)   EX(0);
+    for(; op < out_-(4+64); op += 64, ip += (64/4)*3) { EX(0); EX(1); EX( 2); EX( 3); EX( 4); EX( 5); EX( 6); EX( 7); PREFETCH(ip,384, 0); }
+    for(; op < out_-(4+ 8); op +=  8, ip += ( 8/4)*3)   EX(0);
   }
-  EXTAIL();
+  EXTAIL(1);
   return outlen;
 }
