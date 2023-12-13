@@ -1,0 +1,10 @@
+project(app C)
+
+foreach(proj bpopt bpupgrade)
+    add_executable(${proj} ${proj}.c)
+    target_include_directories(${proj} PRIVATE ../lib)
+    target_link_libraries(${proj} PRIVATE dspbptk)
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        target_link_libraries(${proj} PRIVATE pthread)
+    endif()
+endforeach()

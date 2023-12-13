@@ -12,3 +12,5 @@ dspbptk
 *.zip
 *.rar
 *.7z
+
+!CMakeLists.txt
