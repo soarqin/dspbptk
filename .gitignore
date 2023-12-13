@@ -13,5 +13,7 @@
 *.rar
 *.7z
 
+!CMakeLists.txt
+
 !module/*
 !data/*
