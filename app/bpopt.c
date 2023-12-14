@@ -110,8 +110,11 @@ int main(int argc, char* argv[]) {
         strlen_i, strlen_o, ((double)strlen_o / (double)strlen_i - 1.0) * 100.0);
     if(strlen_o < strlen_i) {
         FILE* fpo = fopen(argv[1], "w");
-        if(fpo == NULL)
-            return -1;
+        if(fpo == NULL) {
+            fprintf(stderr, "Error: Cannot overwrite file:\"%s\".\n", argv[1]);
+            errorlevel = -1;
+            goto error;
+        }
         fprintf(fpo, "%s", str_o);
         fclose(fpo);
         fprintf(stderr, "Over write blueprint.\n");
