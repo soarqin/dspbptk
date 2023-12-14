@@ -20,7 +20,7 @@ extern "C" {
 // #define DSPBPTK_NO_WARNING
 // #define DSPBPTK_NO_ERROR
 
-// #define DSPBPTK_DEBUG
+#define DSPBPTK_DEBUG
 
 #ifdef DSPBPTK_DEBUG
 #define MSG(x) {puts("Message:\t"x);}

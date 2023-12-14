@@ -23,8 +23,14 @@ int main(int argc, char* argv[]) {
     char* bp_path_i;
     char* bp_path_o;
 
+    i64_t aN = 1;
+    f64_t ax = 0.0;
+    f64_t ay = 0.0;
+    f64_t az = 0.0;
+
+    // TODO 支持同时进行多种处理
     // 处理启动参数
-    const char* options = "i:o:";
+    const char* options = "i:o:a:";
 
     char arg;
 
@@ -40,8 +46,24 @@ int main(int argc, char* argv[]) {
             break;
         }
 
+        // TODO 完善异常处理
+        case 'a': {
+            int tmp_err = sscanf(optarg, "%lld,%lf,%lf,%lf", &aN, &ax, &ay, &az);
+            if(tmp_err == 4)
+                break;
+            else
+                goto error;
+        }
+
         default: {
-            fprintf(stderr, "Usage: bptk options...\nExample: bptk -i cubes_v1.txt -o cubes_v2.txt");
+            fprintf(stderr,
+                "Usage: bptk options...\n\
+                Example: bptk -i cubes_v1.txt -o cubes_v2.txt\n\
+                Options:\n\
+                i<file>       Input file(blueprint).\n\
+                o<file>       Output file(blueprint).\n\
+                a[N,x,y,z]  Array blueprint N times with vector [x,y,z]"
+            );
             errorlevel = -1;
             goto error;
         }
@@ -78,7 +100,41 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
-    // 蓝图处理
+    // 调整蓝图大小
+    // TODO 异常检查：aN的值是否合理
+    i64_t old_numBuildings = bp.numBuildings;
+    bp.numBuildings *= aN;
+    bp.buildings = realloc(bp.buildings, sizeof(building_t) * bp.numBuildings);
+    DBG(old_numBuildings);
+    DBG(bp.numBuildings);
+
+// 蓝图处理
+// TODO 兼容拓展标准的蓝图，这个过程可能需要重新编号
+// TODO 检查double free
+    for(i64_t i = 1; i < aN; i++) {
+        i64_t index_base = i * old_numBuildings;
+        DBG(i);
+        DBG(index_base);
+        memcpy(&bp.buildings[index_base], &bp.buildings[0], sizeof(building_t) * old_numBuildings);
+        for(i64_t j = index_base; j < index_base + old_numBuildings; j++) {
+            bp.buildings[j].index += index_base;
+            // TODO 检查
+            if(bp.buildings[j].tempOutputObjIdx != OBJ_NULL)
+                bp.buildings[j].tempOutputObjIdx += index_base;
+            if(bp.buildings[j].tempInputObjIdx != OBJ_NULL)
+                bp.buildings[j].tempInputObjIdx += index_base;
+            // TODO 向量化
+            bp.buildings[j].localOffset.x += i * ax;
+            bp.buildings[j].localOffset.y += i * ay;
+            bp.buildings[j].localOffset.z += i * az;
+            bp.buildings[j].localOffset2.x += i * ax;
+            bp.buildings[j].localOffset2.y += i * ay;
+            bp.buildings[j].localOffset2.z += i * az;
+            i64_t* old_parameters = bp.buildings[j].parameters;
+            bp.buildings[j].parameters = calloc(bp.buildings[j].numParameters, sizeof(i64_t));
+            memcpy(bp.buildings[j].parameters, old_parameters, bp.buildings[j].numParameters * sizeof(i64_t));
+        }
+    }
 
     // 蓝图编码
     uint64_t t_enc_0 = get_timestamp();
@@ -103,7 +159,7 @@ int main(int argc, char* argv[]) {
     fprintf(fpo, "%s", str_o);
     fclose(fpo);
 
-// 释放蓝图数据和蓝图编解码器
+    // 释放蓝图数据和蓝图编解码器
     dspbptk_free_blueprint(&bp);
     dspbptk_free_coder(&coder);
     // 释放字符串内存空间
