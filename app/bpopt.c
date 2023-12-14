@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <time.h>
 
 #include "libdspbptk.h"
@@ -44,6 +45,13 @@ int cmp_building(const void* p_a, const void* p_b) {
     return score_pos_a < score_pos_b ? 1 : -1;
 }
 
+double try_round(double x) {
+    const double error = (1.0 / 2048.0);
+    double tmp = round(x);
+    return (fabs(tmp - x) < error) ? tmp : x;
+
+}
+
 int main(int argc, char* argv[]) {
 
     // dspbptk的错误值
@@ -84,6 +92,20 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "dec time = %.3lf ms\n", d_t(t_dec_1, t_dec_0));
     if(errorlevel) {
         goto error;
+    }
+
+    const int use_normalize_coordinate = 0;
+    if(use_normalize_coordinate) {
+        for(uint64_t i = 0; i < bp.numBuildings; i++) {
+            bp.buildings[i].localOffset.x = try_round(bp.buildings[i].localOffset.x);
+            bp.buildings[i].localOffset.y = try_round(bp.buildings[i].localOffset.y);
+            bp.buildings[i].localOffset.z = try_round(bp.buildings[i].localOffset.z);
+            bp.buildings[i].localOffset2.x = try_round(bp.buildings[i].localOffset2.x);
+            bp.buildings[i].localOffset2.y = try_round(bp.buildings[i].localOffset2.y);
+            bp.buildings[i].localOffset2.z = try_round(bp.buildings[i].localOffset2.z);
+            bp.buildings[i].yaw = try_round(bp.buildings[i].yaw);
+            bp.buildings[i].yaw2 = try_round(bp.buildings[i].yaw2);
+        }
     }
 
     // 对建筑按建筑类型排序，有利于进一步压缩，非必要步骤
