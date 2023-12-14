@@ -11,6 +11,7 @@ endif
 
 CC := gcc
 OBJ_bpopt := app/bpopt.o
+OBJ_bptk := app/bptk.o
 OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c))
 TB64_TARGET = libtb64.a
 TB64_PATH = lib/Turbo-Base64
@@ -20,7 +21,7 @@ CFLAGS := -fexec-charset=GBK -Wall -O3 -pipe -static -march=x86-64 -mtune=generi
 #CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
-APPS = bpopt
+APPS = bpopt bptk
 
 .PHONY: clean
 
@@ -29,6 +30,9 @@ $(APPS): $$(OBJ_$$@) libdspbptk.a $(TB64_LIB)
 	$(CC) -o $@ $(CFLAGS) $(CFLAGS_APP) $^
 
 $(OBJ_bpopt): %.o: %.c
+	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
+
+$(OBJ_bptk): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
 $(OBJ_LIBDSPBPTK): %.o: %.c
