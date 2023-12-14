@@ -48,4 +48,4 @@ $(TB64_LIB): $(TB64_PATH)
 	+ $(MAKE) -C $^ $(TB64_TARGET)
 
 clean:
-	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) bpopt* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
+	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) bpopt* bptk* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o

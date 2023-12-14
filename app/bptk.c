@@ -16,21 +16,42 @@ double d_t(uint64_t t1, uint64_t t0) {
 }
 
 int main(int argc, char* argv[]) {
-
     // dspbptk的错误值
     dspbptk_error_t errorlevel;
 
-    // 检查用户是否输入了文件名
-    if(argc <= 1) {
-        fprintf(stderr, "Usage: bpopt FileName\n");
-        errorlevel = -1;
-        goto error;
+    // 启动参数
+    char* bp_path_i;
+    char* bp_path_o;
+
+    // 处理启动参数
+    const char* options = "i:o:";
+
+    char arg;
+
+    while((arg = getopt(argc, argv, options)) != -1) {
+        switch(arg) {
+        case 'i': {
+            bp_path_i = optarg;
+            break;
+        }
+
+        case 'o': {
+            bp_path_o = optarg;
+            break;
+        }
+
+        default: {
+            fprintf(stderr, "Usage: bptk options...\nExample: bptk -i cubes_v1.txt -o cubes_v2.txt");
+            errorlevel = -1;
+            goto error;
+        }
+        }
     }
 
     // 打开蓝图文件
-    FILE* fpi = fopen(argv[1], "r");
+    FILE* fpi = fopen(bp_path_i, "r");
     if(fpi == NULL) {
-        fprintf(stderr, "Error: Cannot read file:\"%s\".\n", argv[1]);
+        fprintf(stderr, "Error: Cannot read file:\"%s\".\n", bp_path_i);
         errorlevel = -1;
         goto error;
     }
@@ -68,25 +89,21 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
-    // TODO 处理输入输出：现在显然不能直接覆写原始文件了
     // 比较压缩前后的蓝图变化
     size_t strlen_i = strlen(str_i);
     size_t strlen_o = strlen(str_o);
     fprintf(stderr, "strlen_i = %zu\nstrlen_o = %zu (%.3lf%%)\n",
         strlen_i, strlen_o, ((double)strlen_o / (double)strlen_i - 1.0) * 100.0);
-    if(strlen_o < strlen_i) {
-        FILE* fpo = fopen(argv[1], "w");
-        if(fpo == NULL)
-            return -1;
-        fprintf(fpo, "%s", str_o);
-        fclose(fpo);
-        fprintf(stderr, "Over write blueprint.\n");
+    FILE* fpo = fopen(bp_path_o, "w");
+    if(fpo == NULL) {
+        fprintf(stderr, "Error: Cannot overwrite file:\"%s\".\n", bp_path_i);
+        errorlevel = -1;
+        goto error;
     }
-    else {
-        fprintf(stderr, "Origin blueprint is smaller. Nothing Changed.\n");
-    }
+    fprintf(fpo, "%s", str_o);
+    fclose(fpo);
 
-    // 释放蓝图数据和蓝图编解码器
+// 释放蓝图数据和蓝图编解码器
     dspbptk_free_blueprint(&bp);
     dspbptk_free_coder(&coder);
     // 释放字符串内存空间
