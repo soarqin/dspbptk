@@ -24,7 +24,7 @@ extern "C" {
 
 #ifdef DSPBPTK_DEBUG
 #define MSG(x) {puts("Message:\t"x);}
-#define DBG(x) {printf("Debug:\t"#x"=%"PRId64"\n",(int64_t)x);}
+#define DBG(x) {printf("Debug:\t"#x"=%lf\n",(double)x);}
 #else
 #define MSG(x)
 #define DBG(x)
