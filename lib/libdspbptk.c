@@ -122,6 +122,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     blueprint->md5f = (char*)calloc(MD5F_LENGTH + 1, sizeof(char));
     memcpy(blueprint->md5f, md5f, MD5F_LENGTH);
 
+    // FIXME shortdesc和desc忘记分开了
     // 解析head
     blueprint->shortDesc = (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
     int argument_count = sscanf(string, "BLUEPRINT:0,%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",0,%"PRId64",%"PRId64".%"PRId64".%"PRId64".%"PRId64",%[^\"]",
