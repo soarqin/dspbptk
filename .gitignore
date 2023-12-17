@@ -12,3 +12,6 @@
 *.zip
 *.rar
 *.7z
+
+!module/*
+!data/*

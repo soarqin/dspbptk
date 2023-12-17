@@ -1,0 +1,1 @@
+for %%i in (*.txt) do ..\opt.exe -O3 -f "%%i"
