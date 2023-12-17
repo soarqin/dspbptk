@@ -10,9 +10,9 @@ else
 endif
 
 CC := gcc
-OBJ_bpopt := app/bpopt.o
-OBJ_bptk := app/bptk.o
-OBJ_import_list := app/import_list.o
+OBJ_opt := app/opt.o
+OBJ_vec := app/vec.o
+OBJ_IFL := app/IFL.o
 OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c))
 TB64_TARGET = libtb64.a
 TB64_PATH = lib/Turbo-Base64
@@ -22,7 +22,7 @@ CFLAGS := -fexec-charset=GBK -Wall -O3 -pipe -static -march=x86-64 -mtune=generi
 #CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
-APPS = bpopt bptk import_list
+APPS = opt vec IFL
 
 .PHONY: clean
 
@@ -30,13 +30,13 @@ APPS = bpopt bptk import_list
 $(APPS): $$(OBJ_$$@) libdspbptk.a $(TB64_LIB)
 	$(CC) -o $@ $(CFLAGS) $(CFLAGS_APP) $^
 
-$(OBJ_bpopt): %.o: %.c
+$(OBJ_opt): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
-$(OBJ_bptk): %.o: %.c
+$(OBJ_vec): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
-$(OBJ_import_list): %.o: %.c
+$(OBJ_IFL): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
 $(OBJ_LIBDSPBPTK): %.o: %.c
@@ -52,4 +52,4 @@ $(TB64_LIB): $(TB64_PATH)
 	+ $(MAKE) -C $^ $(TB64_TARGET)
 
 clean:
-	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) bpopt* bptk* import_list* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
+	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) opt* vec* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
