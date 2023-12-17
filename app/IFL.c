@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
-    // 比较压缩前后的蓝图变化
+    // 比较处理前后的蓝图变化
     size_t strlen_i = strlen(str_i);
     size_t strlen_o = strlen(str_o);
     fprintf(stderr, "strlen_i = %zu\nstrlen_o = %zu (%.3lf%%)\n",
