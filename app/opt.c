@@ -50,7 +50,20 @@ double try_round(double x) {
     const double error = (1.0 / 2048.0);
     double tmp = round(x);
     return (fabs(tmp - x) < error) ? tmp : x;
+}
 
+void print_help_doc() {
+    printf(
+        "Usage:   opt [Options] FileName\n"
+        "Example: opt -O2 -f -o final.txt demo.txt\n"
+        "\n"
+        "Options:\n"
+        "f            Force write even new blueprint is larger.\n"
+        "h            Show this help doc.\n"
+        "o [file]     Output blueprint to [file].\n"
+        "O {0123}     Optimization level.\n"
+        "\n"
+    );
 }
 
 int main(int argc, char* argv[]) {
@@ -60,7 +73,6 @@ int main(int argc, char* argv[]) {
 
     // 检查用户是否输入了文件名
     if(argc <= 1) {
-        fprintf(stderr, "Usage: bpopt FileName\n");
         errorlevel = -1;
         goto error;
     }
@@ -72,10 +84,20 @@ int main(int argc, char* argv[]) {
     i64_t force_overwrite = 0;
 
     // 处理启动参数
-    const char* options = "o:O:f";
+    const char* options = "fho:O:";
     char arg;
     while((arg = getopt(argc, argv, options)) != -1) {
         switch(arg) {
+        case 'f': { // 强制覆写
+            force_overwrite = 1;
+            break;
+        }
+
+        case 'h': {
+            errorlevel = 0;
+            goto error;
+        }
+
         case 'o': { // 重定向输出文件
             bp_path_o = optarg;
             break;
@@ -89,10 +111,6 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        case 'f': { // 强制覆写
-            force_overwrite = 1;
-            break;
-        }
         }
     }
 
@@ -191,6 +209,7 @@ int main(int argc, char* argv[]) {
     return 0;
 
 error:
+    print_help_doc();
     fprintf(stderr, "errorlevel = %d\n", errorlevel);
     return errorlevel;
 }
