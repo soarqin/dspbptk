@@ -18,7 +18,7 @@ TB64_TARGET = libtb64.a
 TB64_PATH = lib/Turbo-Base64
 TB64_LIB = $(TB64_PATH)/$(TB64_TARGET)
 
-CFLAGS := -fexec-charset=GBK -Wall -O3 -pipe -static -march=x86-64 -mtune=generic -mavx2 -flto
+CFLAGS := -fexec-charset=GBK -Wall -O3 -pipe -static -s -march=x86-64 -mtune=generic -mavx2 -flto
 #CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
@@ -50,6 +50,8 @@ libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK) $(TB64_LIB)
 
 $(TB64_LIB): $(TB64_PATH)
 	+ $(MAKE) -C $^ $(TB64_TARGET)
+
+all: $(APPS) libdspbptk.a libdspbptk$(SHLIB_SUFFIX)
 
 clean:
 	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) opt* vec* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
