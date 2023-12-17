@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <math.h>
 #include <time.h>
 
@@ -64,10 +65,44 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
+    // 声明启动参数
+    char* bp_path_i = argv[argc - 1];
+    char* bp_path_o = argv[argc - 1];
+    i64_t opt_level = 2;
+    i64_t force_overwrite = 0;
+
+    // 处理启动参数
+    const char* options = "o:O:f";
+    char arg;
+    while((arg = getopt(argc, argv, options)) != -1) {
+        switch(arg) {
+        case 'o': { // 重定向输出文件
+            bp_path_o = optarg;
+            break;
+        }
+
+        case 'O': { // 优化级别，数字越大优化级别越高
+            sscanf(optarg, "%lld", &opt_level);
+            // TODO 这里应该静默吗？
+            opt_level = opt_level > 3 ? 3 : opt_level;
+            opt_level = opt_level < 0 ? 0 : opt_level;
+            break;
+        }
+
+        case 'f': { // 强制覆写
+            force_overwrite = 1;
+            break;
+        }
+        }
+    }
+
+    fprintf(stderr, "file_i：%s\n", bp_path_i);
+    fprintf(stderr, "file_o：%s\n", bp_path_o);
+
     // 打开蓝图文件
-    FILE* fpi = fopen(argv[1], "r");
+    FILE* fpi = fopen(bp_path_i, "r");
     if(fpi == NULL) {
-        fprintf(stderr, "Error: Cannot read file:\"%s\".\n", argv[1]);
+        fprintf(stderr, "Error: Cannot read file:\"%s\".\n", bp_path_i);
         errorlevel = -1;
         goto error;
     }
@@ -94,8 +129,8 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
-    const int use_normalize_coordinate = 0;
-    if(use_normalize_coordinate) {
+    // 优化：坐标归正
+    if(opt_level >= 3) {
         for(uint64_t i = 0; i < bp.numBuildings; i++) {
             bp.buildings[i].localOffset.x = try_round(bp.buildings[i].localOffset.x);
             bp.buildings[i].localOffset.y = try_round(bp.buildings[i].localOffset.y);
@@ -108,13 +143,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // 对建筑按建筑类型排序，有利于进一步压缩，非必要步骤
-#ifndef DSPBPTK_DONT_SORT_BUILDING
-    uint64_t t_opt_0 = get_timestamp();
-    qsort(bp.buildings, bp.numBuildings, sizeof(building_t), cmp_building);
-    uint64_t t_opt_1 = get_timestamp();
-    fprintf(stderr, "opt time = %.3lf ms\n", d_t(t_opt_1, t_opt_0));
-#endif
+    // 优化：建筑排序
+    if(opt_level >= 2) {
+        uint64_t t_opt_0 = get_timestamp();
+        qsort(bp.buildings, bp.numBuildings, sizeof(building_t), cmp_building);
+        uint64_t t_opt_1 = get_timestamp();
+        fprintf(stderr, "opt time = %.3lf ms\n", d_t(t_opt_1, t_opt_0));
+    }
 
     // 蓝图编码
     uint64_t t_enc_0 = get_timestamp();
@@ -130,10 +165,10 @@ int main(int argc, char* argv[]) {
     size_t strlen_o = strlen(str_o);
     fprintf(stderr, "strlen_i = %zu\nstrlen_o = %zu (%.3lf%%)\n",
         strlen_i, strlen_o, ((double)strlen_o / (double)strlen_i - 1.0) * 100.0);
-    if(strlen_o < strlen_i) {
-        FILE* fpo = fopen(argv[1], "w");
+    if(strlen_o < strlen_i || force_overwrite) {
+        FILE* fpo = fopen(bp_path_o, "w");
         if(fpo == NULL) {
-            fprintf(stderr, "Error: Cannot overwrite file:\"%s\".\n", argv[1]);
+            fprintf(stderr, "Error: Cannot overwrite file:\"%s\".\n", bp_path_o);
             errorlevel = -1;
             goto error;
         }
@@ -142,7 +177,7 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Over write blueprint.\n");
     }
     else {
-        fprintf(stderr, "Origin blueprint is smaller. Nothing Changed.\n");
+        fprintf(stderr, "Origin blueprint is better. Nothing Changed.\n");
     }
 
     // 释放蓝图数据和蓝图编解码器
@@ -153,7 +188,6 @@ int main(int argc, char* argv[]) {
     free(str_i);
 
     // 退出程序
-    printf("Finish.\n");
     return 0;
 
 error:
