@@ -19,16 +19,15 @@ int main(int argc, char* argv[]) {
     // dspbptk的错误值
     dspbptk_error_t errorlevel;
 
-    // 启动参数
-    char* bp_path_i;
-    char* bp_path_o;
+    // 声明启动参数
+    char* bp_path_i = NULL;
+    char* bp_path_o = NULL;
 
     i64_t aN = 1;
     f64_t ax = 0.0;
     f64_t ay = 0.0;
     f64_t az = 0.0;
 
-    // TODO 支持同时进行多种处理
     // 处理启动参数
     const char* options = "i:o:a:";
 

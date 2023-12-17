@@ -17,46 +17,60 @@ double d_t(uint64_t t1, uint64_t t0) {
 }
 
 void xyz_to_xy(f64x4_t* xyz, f64x4_t* xy) {
-    double y = asin(xyz->z) * (250.0 / (M_PI / 2));
+    xy->y = asin(xyz->z) * (250.0 / M_PI_2);
 
-    double r = sqrt(xyz->x * xyz->x + xyz->y * xyz->y);
-    double x = acos(xyz->y / r) * (250.0 / (M_PI / 2));
+    xy->x = acos(xyz->y / sqrt(1.0 - xyz->z * xyz->z)) * (250.0 / M_PI_2);
     if(xyz->x < 0.0)
-        x = -x;
+        xy->x = -xy->x;
+}
 
-    xy->x = x;
-    xy->y = y;
+void print_help_doc() {
+    printf(
+        "Usage:   IFL options...\n"
+        "Example: IFL -i unit.txt -o final.txt -l list.txt -N 130\n"
+        "\n"
+        "Options:\n"
+        "h             Show this help doc.\n"
+        "i<file>       Input file(blueprint).\n"
+        "l<file>       Coordinate List File.\n"
+        "N[num]        Num of Coordinate.\n"
+        "o<file>       Output file(blueprint).\n"
+        "\n"
+    );
 }
 
 int main(int argc, char* argv[]) {
     // dspbptk的错误值
     dspbptk_error_t errorlevel;
 
+    if(argc <= 1) {
+        errorlevel = -1;
+        goto error;
+    }
+
     // 启动参数
     i64_t num_list = 0;
-    char* bp_path_i;
-    char* bp_path_o;
-    char* list_path;
+    char* bp_path_i = NULL;
+    char* bp_path_o = NULL;
+    char* list_path = NULL;
 
-    // TODO 支持同时进行多种处理
     // 处理启动参数
-    const char* options = "i:o:l:N:";
+    const char* options = "hi:l:N:o:";
 
     char arg;
 
     while((arg = getopt(argc, argv, options)) != -1) {
         switch(arg) {
+        case 'h': {
+            errorlevel = 0;
+            goto error;
+        }
+
         case 'i': {
             bp_path_i = optarg;
             break;
         }
 
-        case 'o': {
-            bp_path_o = optarg;
-            break;
-        }
-
-        // TODO 完善异常处理
         case 'l': {
             list_path = optarg;
             break;
@@ -64,26 +78,27 @@ int main(int argc, char* argv[]) {
 
         case 'N': {
             sscanf(optarg, "%lld", &num_list);
+            if(num_list < 1) {
+                fprintf(stderr, "非法参数N=%lld", num_list);
+                errorlevel = -1;
+                goto error;
+            }
             break;
         }
-
-        default: {
-            fprintf(stderr,
-                "Usage: bptk options...\n\
-                Example: bptk -i cubes_v1.txt -o cubes_v2.txt\n\
-                Options:\n\
-                i<file>       Input file(blueprint).\n\
-                o<file>       Output file(blueprint).\n\
-                a[N,x,y,z]  Array blueprint N times with vector [x,y,z]\n"
-            );
-            errorlevel = -1;
-            goto error;
+        case 'o': {
+            bp_path_o = optarg;
+            break;
         }
         }
     }
 
     // 读取坐标列表
     FILE* fpl = fopen(list_path, "r");
+    if(fpl == NULL) {
+        fprintf(stderr, "Error: Cannot read file:\"%s\".\n", list_path);
+        errorlevel = -1;
+        goto error;
+    }
     f64x4_t* pos_list = calloc(num_list, sizeof(f64x4_t));
     for(i64_t i = 0; i < num_list; i++) {
         fscanf(fpl, "%lf", &pos_list[i].x);
@@ -122,6 +137,7 @@ int main(int argc, char* argv[]) {
         goto error;
     }
 
+    uint64_t t_edt_0 = get_timestamp();
 
     // 检查是不是单建筑蓝图，如果是把坐标归零
     if(bp.numBuildings == 1) {
@@ -131,11 +147,10 @@ int main(int argc, char* argv[]) {
         bp.buildings[0].localOffset2.x = 0.0;
         bp.buildings[0].localOffset2.y = 0.0;
         bp.buildings[0].localOffset2.z = 0.0;
-        printf("检测到单建筑蓝图，坐标已归正至原点\n");
+        fprintf(stderr, "检测到单建筑蓝图，坐标已归正至原点\n");
     }
 
     // 调整蓝图大小
-    // TODO 异常检查：aN的值是否合理
     i64_t old_numBuildings = bp.numBuildings;
     bp.numBuildings *= num_list;
     bp.buildings = realloc(bp.buildings, sizeof(building_t) * bp.numBuildings);
@@ -145,7 +160,6 @@ int main(int argc, char* argv[]) {
     // 蓝图处理
     // TODO 兼容拓展标准的蓝图，这个过程可能需要重新编号
     // TODO 检查double free
-
     for(i64_t i = 1; i < num_list; i++) {
         i64_t index_base = i * old_numBuildings;
 
@@ -162,14 +176,10 @@ int main(int argc, char* argv[]) {
         DBG(xy.x);
         DBG(xy.y);
 
-
-
         i64_t index_base = i * old_numBuildings;
-
 
         for(int j = 0; j < old_numBuildings; j++) {
             bp.buildings[j].index += index_base;
-            // TODO 检查
             if(bp.buildings[j].tempOutputObjIdx != OBJ_NULL)
                 bp.buildings[j].tempOutputObjIdx += index_base;
             if(bp.buildings[j].tempInputObjIdx != OBJ_NULL)
@@ -181,9 +191,11 @@ int main(int argc, char* argv[]) {
             i64_t* old_parameters = bp.buildings[j].parameters;
             bp.buildings[j].parameters = calloc(bp.buildings[j].numParameters, sizeof(i64_t));
             memcpy(bp.buildings[j].parameters, old_parameters, bp.buildings[j].numParameters * sizeof(i64_t));
-
         }
     }
+
+    uint64_t t_edt_1 = get_timestamp();
+    fprintf(stderr, "edt time = %.3lf ms\n", d_t(t_edt_1, t_edt_0));
 
     // 蓝图编码
     uint64_t t_enc_0 = get_timestamp();
@@ -218,10 +230,11 @@ int main(int argc, char* argv[]) {
     free(pos_list);
 
     // 退出程序
-    printf("Finish.\n");
+    fprintf(stderr, "Finish.\n");
     return 0;
 
 error:
+    print_help_doc();
     fprintf(stderr, "errorlevel = %d\n", errorlevel);
     return errorlevel;
 }
