@@ -231,6 +231,9 @@ extern "C" {
      */
     i32_t get_idx(i64_t* ObjIdx, index_t* id_lut, size_t BUILDING_NUM);
 
+    void dspbptk_calloc_parameters(building_t* building, size_t N);
+
+    void dspbptk_resize(blueprint_t* blueprint, size_t N);
 
 
 #ifdef __cplusplus

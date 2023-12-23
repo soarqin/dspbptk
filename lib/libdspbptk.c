@@ -85,6 +85,18 @@ size_t gzip_declen(const unsigned char* in, size_t in_nbytes) {
 // dspbptk decode
 ////////////////////////////////////////////////////////////////////////////////
 
+void dspbptk_calloc_parameters(building_t* building, size_t N) {
+    if(N > 0) {
+        building->numParameters = N;
+        building->parameters = (building_t*)calloc(N, sizeof(building_t));
+    }
+    else {
+        // TODO 这里应该静默吗？
+        building->numParameters = 0;
+        building->parameters = NULL;
+    }
+}
+
 dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string) {
     // 初始化结构体，置零
     memset(blueprint, 0, sizeof(blueprint_t));
@@ -110,7 +122,6 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 #endif
     const size_t head_length = (size_t)(base64 - head - 1);
     const size_t base64_length = (size_t)(md5f - base64 - 1);
-    DBG(base64_length);
 
     // 解析md5f(并校验)
 #ifndef DSPBPTK_NO_WARNING
@@ -148,10 +159,8 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     {
         // base64解码
         size_t gzip_length = base64_declen(base64, base64_length);
-        DBG(gzip_length);
         void* gzip = coder->buffer0;
         gzip_length = base64_dec(base64, base64_length, gzip);
-        DBG(gzip_length);
     #ifndef DSPBPTK_NO_ERROR
         if(gzip_length <= 0)
             return blueprint_base64_broken;
@@ -159,10 +168,8 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 
         // gzip解压
         size_t bin_length = gzip_declen(gzip, gzip_length);
-        DBG(bin_length);
         void* bin = coder->buffer1;
         bin_length = gzip_dec(coder, gzip, gzip_length, bin);
-        DBG(bin_length);
     #ifndef DSPBPTK_NO_ERROR
         if(bin_length <= 3)
             return blueprint_gzip_broken;
@@ -188,7 +195,6 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             const size_t AREA_NUM = (size_t) * ((i8_t*)(ptr_bin + bin_offset_numAreas));
             blueprint->numAreas = AREA_NUM;
             blueprint->areas = (area_t*)calloc(AREA_NUM, sizeof(area_t));
-            DBG(AREA_NUM);
 
             // 解析区域数组
             ptr_bin += bin_offset_areas;
@@ -210,7 +216,6 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             const size_t BUILDING_NUM = (size_t) * ((i32_t*)(ptr_bin));
             blueprint->numBuildings = BUILDING_NUM;
             blueprint->buildings = (building_t*)calloc(BUILDING_NUM, sizeof(building_t));
-            DBG(BUILDING_NUM);
 
             // 解析建筑数组
             ptr_bin += sizeof(int32_t);
@@ -250,19 +255,11 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
                 BUILDING_DECODE(recipeId, i16_t);
                 BUILDING_DECODE(filterId, i16_t);
 
-                // DBG(blueprint->buildings[i].itemId);
-
-                // 解析建筑的参数列表长度
+                // 解析建筑的参数列表
                 const size_t PARAMETERS_NUM = (i64_t) * ((i16_t*)(ptr_bin + building_offset_numParameters));
-                blueprint->buildings[i].numParameters = PARAMETERS_NUM;
+                dspbptk_calloc_parameters(&blueprint->buildings[i], PARAMETERS_NUM);
 
                 // 解析建筑的参数列表
-                if(PARAMETERS_NUM > 0) {
-                    blueprint->buildings[i].parameters = (i64_t*)calloc(PARAMETERS_NUM, sizeof(i64_t));
-                }
-                else {
-                    blueprint->buildings[i].parameters = NULL;
-                }
                 ptr_bin += building_offset_parameters;
                 for(size_t j = 0; j < PARAMETERS_NUM; j++)
                     blueprint->buildings[i].parameters[j] = (i64_t) * ((i32_t*)(ptr_bin + j * sizeof(i32_t)));
@@ -348,7 +345,6 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
 
     // 编码区域总数
     *((i8_t*)(ptr_bin + bin_offset_numAreas)) = (i8_t)blueprint->numAreas;
-    DBG(*((i8_t*)(ptr_bin + bin_offset_numAreas)));
 
     // 编码区域数组
     ptr_bin += bin_offset_areas;
@@ -368,7 +364,6 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
 
     // 编码建筑总数
     *((i32_t*)(ptr_bin)) = (i32_t)blueprint->numBuildings;
-    DBG(*((i32_t*)(ptr_bin)));
 
     // 重新生成index
     index_t* id_lut = (index_t*)coder->buffer1;
@@ -475,4 +470,15 @@ void dspbptk_free_coder(dspbptk_coder_t* coder) {
     free(coder->buffer1);
     libdeflate_free_compressor(coder->p_compressor);
     libdeflate_free_decompressor(coder->p_decompressor);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// dspbptk api
+////////////////////////////////////////////////////////////////////////////////
+
+void dspbptk_resize(blueprint_t* blueprint, size_t N) {
+    blueprint->numBuildings = N;
+    blueprint->buildings = realloc(blueprint->buildings, sizeof(building_t) * N);
 }

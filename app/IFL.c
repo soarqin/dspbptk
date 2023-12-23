@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <math.h>
+#include <float.h>
 
 #include "libdspbptk.h"
 
@@ -16,12 +17,26 @@ double d_t(uint64_t t1, uint64_t t0) {
     return (double)(t1 - t0) / 1000000.0;
 }
 
-void xyz_to_xy(f64x4_t* xyz, f64x4_t* xy) {
-    xy->y = asin(xyz->z) * (250.0 / M_PI_2);
+void xyz_to_xy(f64x4_t* rct, f64x4_t* sph) {
+    // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
+    double x = 0.0;
+    double y = 0.0;
 
-    xy->x = acos(xyz->y / sqrt(1.0 - xyz->z * xyz->z)) * (250.0 / M_PI_2);
-    if(xyz->x < 0.0)
-        xy->x = -xy->x;
+    y = asin(rct->z) * (250.0 / M_PI_2);
+    x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
+
+    if(isfinite(y))
+        sph->y = y;
+    else
+        sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
+
+    if(isfinite(x))
+        sph->x = x;
+    else
+        sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
+
+    if(!isfinite(x) || !isfinite(y))
+        fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
 }
 
 void print_help_doc() {
@@ -152,14 +167,10 @@ int main(int argc, char* argv[]) {
 
     // 调整蓝图大小
     i64_t old_numBuildings = bp.numBuildings;
-    bp.numBuildings *= num_list;
-    bp.buildings = realloc(bp.buildings, sizeof(building_t) * bp.numBuildings);
-    DBG(old_numBuildings);
-    DBG(bp.numBuildings);
+    dspbptk_resize(&bp, bp.numBuildings * num_list);
 
     // 蓝图处理
     // TODO 兼容拓展标准的蓝图，这个过程可能需要重新编号
-    // TODO 检查double free
     for(i64_t i = 1; i < num_list; i++) {
         i64_t index_base = i * old_numBuildings;
 
@@ -170,27 +181,23 @@ int main(int argc, char* argv[]) {
     for(i64_t i = 0; i < num_list; i++) {
         f64x4_t xy;
         xyz_to_xy(&pos_list[i], &xy);
-        DBG(pos_list[i].x);
-        DBG(pos_list[i].y);
-        DBG(pos_list[i].z);
-        DBG(xy.x);
-        DBG(xy.y);
 
         i64_t index_base = i * old_numBuildings;
 
-        for(int j = 0; j < old_numBuildings; j++) {
+        for(int j = index_base; j < index_base + old_numBuildings; j++) {
             bp.buildings[j].index += index_base;
             if(bp.buildings[j].tempOutputObjIdx != OBJ_NULL)
                 bp.buildings[j].tempOutputObjIdx += index_base;
             if(bp.buildings[j].tempInputObjIdx != OBJ_NULL)
                 bp.buildings[j].tempInputObjIdx += index_base;
 
-            bp.buildings[index_base + j].localOffset.x += xy.x;
-            bp.buildings[index_base + j].localOffset.y += xy.y;
+            bp.buildings[j].localOffset.x += xy.x;
+            bp.buildings[j].localOffset.y += xy.y;
 
-            i64_t* old_parameters = bp.buildings[j].parameters;
-            bp.buildings[j].parameters = calloc(bp.buildings[j].numParameters, sizeof(i64_t));
-            memcpy(bp.buildings[j].parameters, old_parameters, bp.buildings[j].numParameters * sizeof(i64_t));
+            if(i != 0 && bp.buildings[j].parameters != 0) {
+                dspbptk_calloc_parameters(&bp.buildings[j], bp.buildings[j].numParameters);
+                memcpy(bp.buildings[j].parameters, bp.buildings[j - index_base].parameters, bp.buildings[j].numParameters * sizeof(i64_t));
+            }
         }
     }
 

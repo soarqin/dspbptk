@@ -111,18 +111,12 @@ int main(int argc, char* argv[]) {
 
     // 调整蓝图大小
     i64_t old_numBuildings = bp.numBuildings;
-    bp.numBuildings *= aN;
-    bp.buildings = realloc(bp.buildings, sizeof(building_t) * bp.numBuildings);
-    DBG(old_numBuildings);
-    DBG(bp.numBuildings);
+    dspbptk_resize(&bp, bp.numBuildings * aN);
 
     // 蓝图处理
     // TODO 兼容拓展标准的蓝图，这个过程可能需要重新编号
-    // TODO 检查double free
     for(i64_t i = 1; i < aN; i++) {
         i64_t index_base = i * old_numBuildings;
-        DBG(i);
-        DBG(index_base);
         memcpy(&bp.buildings[index_base], &bp.buildings[0], sizeof(building_t) * old_numBuildings);
         for(i64_t j = index_base; j < index_base + old_numBuildings; j++) {
             bp.buildings[j].index += index_base;
@@ -137,9 +131,11 @@ int main(int argc, char* argv[]) {
             bp.buildings[j].localOffset2.x += i * ax;
             bp.buildings[j].localOffset2.y += i * ay;
             bp.buildings[j].localOffset2.z += i * az;
-            i64_t* old_parameters = bp.buildings[j].parameters;
-            bp.buildings[j].parameters = calloc(bp.buildings[j].numParameters, sizeof(i64_t));
-            memcpy(bp.buildings[j].parameters, old_parameters, bp.buildings[j].numParameters * sizeof(i64_t));
+
+            if(bp.buildings[j].parameters != 0) {
+                dspbptk_calloc_parameters(&bp.buildings[j], bp.buildings[j].numParameters);
+                memcpy(bp.buildings[j].parameters, bp.buildings[j].numParameters, bp.buildings[j].numParameters * sizeof(i64_t));
+            }
         }
     }
 
