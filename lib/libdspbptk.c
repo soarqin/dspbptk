@@ -88,7 +88,7 @@ size_t gzip_declen(const unsigned char* in, size_t in_nbytes) {
 void dspbptk_calloc_parameters(building_t* building, size_t N) {
     if(N > 0) {
         building->numParameters = N;
-        building->parameters = (building_t*)calloc(N, sizeof(building_t));
+        building->parameters = (i64_t*)calloc(N, sizeof(i64_t));
     }
     else {
         // TODO 这里应该静默吗？

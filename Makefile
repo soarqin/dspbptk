@@ -19,7 +19,7 @@ TB64_PATH = lib/Turbo-Base64
 TB64_LIB = $(TB64_PATH)/$(TB64_TARGET)
 
 CFLAGS := -fexec-charset=GBK -Wall -lm
-CFLAGS += -O3 -march=x86-64 -mtune=generic -mavx2 -flto
+CFLAGS += -O3 -static -s -march=x86-64 -mtune=generic -mavx2 -flto
 # CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
