@@ -14,7 +14,8 @@
  * @return size_t 编码后的二进制流长度
  */
 size_t base64_enc(const void* in, size_t inlen, char* out) {
-    return _tb64e((unsigned char*)in, inlen, (unsigned char*)out);
+    return chromium_base64_encode(out, in, inlen);
+    // return _tb64e((unsigned char*)in, inlen, (unsigned char*)out);
 }
 
 /**
@@ -26,14 +27,14 @@ size_t base64_enc(const void* in, size_t inlen, char* out) {
  * @return size_t 当返回值<=0时表示解码错误；当返回值>=1时，表示成功并返回解码后的二进制流长度
  */
 size_t base64_dec(const char* in, size_t inlen, void* out) {
-    return _tb64d((unsigned char*)in, inlen, (unsigned char*)out);
+    return chromium_base64_decode(out, in ,inlen);
 }
 
 /**
  * @brief 返回base64解码后的准确长度。用于解耦dspbptk与更底层的base64库
  */
 size_t base64_declen(const char* base64, size_t base64_length) {
-    return tb64declen((unsigned char*)base64, base64_length);
+    return chromium_base64_decode_len(base64_length);
 }
 
 /**
@@ -458,7 +459,6 @@ void dspbptk_init_coder(dspbptk_coder_t* coder) {
     coder->buffer1 = calloc(BLUEPRINT_MAX_LENGTH, 1);
     coder->p_compressor = libdeflate_alloc_compressor(12);
     coder->p_decompressor = libdeflate_alloc_decompressor();
-    tb64ini(0, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

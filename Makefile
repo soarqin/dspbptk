@@ -13,10 +13,7 @@ CC := gcc
 OBJ_opt := app/opt.o
 OBJ_vec := app/vec.o
 OBJ_IFL := app/IFL.o
-OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c))
-TB64_TARGET = libtb64.a
-TB64_PATH = lib/Turbo-Base64
-TB64_LIB = $(TB64_PATH)/$(TB64_TARGET)
+OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c lib/chromiumbase64/*.c))
 
 CFLAGS := -fexec-charset=GBK -Wall -lm
 CFLAGS += -O3 -static -s -march=x86-64 -mtune=generic -mavx2 -flto
@@ -28,7 +25,7 @@ APPS = opt vec IFL
 .PHONY: clean
 
 .SECONDEXPANSION:
-$(APPS): $$(OBJ_$$@) libdspbptk.a $(TB64_LIB)
+$(APPS): $$(OBJ_$$@) libdspbptk.a
 	$(CC) -o $@ $(CFLAGS) $(CFLAGS_APP) $^
 
 $(OBJ_opt): %.o: %.c
@@ -46,13 +43,10 @@ $(OBJ_LIBDSPBPTK): %.o: %.c
 libdspbptk.a: $(OBJ_LIBDSPBPTK)
 	$(AR) -rc $@ $^
 
-libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK) $(TB64_LIB)
-	$(CC) -o $@ $(CFLAGS) -shared -fpic $^ $(TB64_LIB)
-
-$(TB64_LIB): $(TB64_PATH)
-	+ $(MAKE) -C $^ $(TB64_TARGET)
+libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK)
+	$(CC) -o $@ $(CFLAGS) -shared -fpic $^
 
 all: $(APPS) libdspbptk.a libdspbptk$(SHLIB_SUFFIX)
 
 clean:
-	rm -f $(TB64_LIB) $(TB64_PATH)/*.o $(OBJ_LIBDSPBPTK) opt* vec* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
+	rm -f $(OBJ_LIBDSPBPTK) opt* vec* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
