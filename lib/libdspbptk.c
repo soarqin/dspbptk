@@ -27,7 +27,7 @@ size_t base64_enc(const void* in, size_t inlen, char* out) {
  * @return size_t 当返回值<=0时表示解码错误；当返回值>=1时，表示成功并返回解码后的二进制流长度
  */
 size_t base64_dec(const char* in, size_t inlen, void* out) {
-    return chromium_base64_decode(out, in ,inlen);
+    return chromium_base64_decode(out, in, inlen);
 }
 
 /**
@@ -182,15 +182,13 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             void* ptr_bin = bin;
 
             // 解析二进制流的头
-        #define BIN_HEAD_DECODE(name, type)\
-            blueprint->name = (i64_t)*((type*)(ptr_bin + bin_offset_##name));
-            BIN_HEAD_DECODE(version, i32_t);
-            BIN_HEAD_DECODE(cursorOffsetX, i32_t);
-            BIN_HEAD_DECODE(cursorOffsetY, i32_t);
-            BIN_HEAD_DECODE(cursorTargetArea, i32_t);
-            BIN_HEAD_DECODE(dragBoxSizeX, i32_t);
-            BIN_HEAD_DECODE(dragBoxSizeY, i32_t);
-            BIN_HEAD_DECODE(primaryAreaIdx, i32_t);
+            blueprint->version = *((i32_t*)(ptr_bin + bin_offset_version));
+            blueprint->cursorOffsetX = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX));
+            blueprint->cursorOffsetY = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY));
+            blueprint->cursorTargetArea = *((i32_t*)(ptr_bin + bin_offset_cursorTargetArea));
+            blueprint->dragBoxSizeX = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeX));
+            blueprint->dragBoxSizeY = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeY));
+            blueprint->primaryAreaIdx = *((i32_t*)(ptr_bin + bin_offset_primaryAreaIdx));
 
             // 解析区域数量
             const size_t AREA_NUM = (size_t) * ((i8_t*)(ptr_bin + bin_offset_numAreas));
@@ -200,16 +198,14 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             // 解析区域数组
             ptr_bin += bin_offset_areas;
             for(size_t i = 0; i < AREA_NUM; i++) {
-            #define AREA_DECODE(name, type)\
-                blueprint->areas[i].name = (i64_t)*((type*)(ptr_bin + area_offset_##name));
-                AREA_DECODE(index, i8_t);
-                AREA_DECODE(parentIndex, i8_t);
-                AREA_DECODE(tropicAnchor, i16_t);
-                AREA_DECODE(areaSegments, i16_t);
-                AREA_DECODE(anchorLocalOffsetX, i16_t);
-                AREA_DECODE(anchorLocalOffsetY, i16_t);
-                AREA_DECODE(width, i16_t);
-                AREA_DECODE(height, i16_t);
+                blueprint->areas[i].index = *((i8_t*)(ptr_bin + area_offset_index));
+                blueprint->areas[i].parentIndex = *((i8_t*)(ptr_bin + area_offset_parentIndex));
+                blueprint->areas[i].tropicAnchor = *((i16_t*)(ptr_bin + area_offset_tropicAnchor));
+                blueprint->areas[i].areaSegments = *((i16_t*)(ptr_bin + area_offset_areaSegments));
+                blueprint->areas[i].anchorLocalOffsetX = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetX));
+                blueprint->areas[i].anchorLocalOffsetY = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetY));
+                blueprint->areas[i].width = *((i16_t*)(ptr_bin + area_offset_width));
+                blueprint->areas[i].height = *((i16_t*)(ptr_bin + area_offset_height));
                 ptr_bin += area_offset_next;
             }
 
@@ -221,49 +217,39 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             // 解析建筑数组
             ptr_bin += sizeof(int32_t);
             for(size_t i = 0; i < BUILDING_NUM; i++) {
-
-            #define BUILDING_DECODE(name, type)\
-                blueprint->buildings[i].name = *((type*)(ptr_bin + building_offset_##name));
-
-                BUILDING_DECODE(index, i32_t);
-
-                BUILDING_DECODE(areaIndex, i8_t);
-
-                // 把建筑坐标处理成齐次坐标
-                blueprint->buildings[i].localOffset.x = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_x));
-                blueprint->buildings[i].localOffset.y = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_y));
-                blueprint->buildings[i].localOffset.z = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_z));
-                blueprint->buildings[i].localOffset.w = (f64_t)1.0;
-                blueprint->buildings[i].localOffset2.x = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_x2));
-                blueprint->buildings[i].localOffset2.y = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_y2));
-                blueprint->buildings[i].localOffset2.z = (f64_t) * ((f32_t*)(ptr_bin + building_offset_localOffset_z2));
-                blueprint->buildings[i].localOffset2.w = (f64_t)1.0;
-
-                BUILDING_DECODE(yaw, f32_t);
-                BUILDING_DECODE(yaw2, f32_t);
-                BUILDING_DECODE(itemId, i16_t);
-                BUILDING_DECODE(modelIndex, i16_t);
-
-                BUILDING_DECODE(tempOutputObjIdx, i32_t);
-                BUILDING_DECODE(tempInputObjIdx, i32_t);
-
-                BUILDING_DECODE(outputToSlot, i8_t);
-                BUILDING_DECODE(inputFromSlot, i8_t);
-                BUILDING_DECODE(outputFromSlot, i8_t);
-                BUILDING_DECODE(inputToSlot, i8_t);
-                BUILDING_DECODE(outputOffset, i8_t);
-                BUILDING_DECODE(inputOffset, i8_t);
-                BUILDING_DECODE(recipeId, i16_t);
-                BUILDING_DECODE(filterId, i16_t);
+                blueprint->buildings[i].index = *((i32_t*)(ptr_bin + building_offset_index));
+                blueprint->buildings[i].areaIndex = *((i8_t*)(ptr_bin + building_offset_areaIndex));
+                blueprint->buildings[i].localOffset.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
+                blueprint->buildings[i].localOffset.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y));
+                blueprint->buildings[i].localOffset.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z));
+                blueprint->buildings[i].localOffset.w = 1.0;
+                blueprint->buildings[i].localOffset2.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x2));
+                blueprint->buildings[i].localOffset2.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y2));
+                blueprint->buildings[i].localOffset2.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z2));
+                blueprint->buildings[i].localOffset2.w = 1.0;
+                blueprint->buildings[i].yaw = *((f32_t*)(ptr_bin + building_offset_yaw));
+                blueprint->buildings[i].yaw2 = *((f32_t*)(ptr_bin + building_offset_yaw2));
+                blueprint->buildings[i].itemId = *((i16_t*)(ptr_bin + building_offset_itemId));
+                blueprint->buildings[i].modelIndex = *((i16_t*)(ptr_bin + building_offset_modelIndex));
+                blueprint->buildings[i].tempOutputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempOutputObjIdx));
+                blueprint->buildings[i].tempInputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempInputObjIdx));
+                blueprint->buildings[i].outputToSlot = *((i8_t*)(ptr_bin + building_offset_outputToSlot));
+                blueprint->buildings[i].inputFromSlot = *((i8_t*)(ptr_bin + building_offset_inputFromSlot));
+                blueprint->buildings[i].outputFromSlot = *((i8_t*)(ptr_bin + building_offset_outputFromSlot));
+                blueprint->buildings[i].inputToSlot = *((i8_t*)(ptr_bin + building_offset_inputToSlot));
+                blueprint->buildings[i].outputOffset = *((i8_t*)(ptr_bin + building_offset_outputOffset));
+                blueprint->buildings[i].inputOffset = *((i8_t*)(ptr_bin + building_offset_inputOffset));
+                blueprint->buildings[i].recipeId = *((i16_t*)(ptr_bin + building_offset_recipeId));
+                blueprint->buildings[i].filterId = *((i16_t*)(ptr_bin + building_offset_filterId));
 
                 // 解析建筑的参数列表
-                const size_t PARAMETERS_NUM = (i64_t) * ((i16_t*)(ptr_bin + building_offset_numParameters));
+                const size_t PARAMETERS_NUM = *((i16_t*)(ptr_bin + building_offset_numParameters));
                 dspbptk_calloc_parameters(&blueprint->buildings[i], PARAMETERS_NUM);
 
                 // 解析建筑的参数列表
                 ptr_bin += building_offset_parameters;
                 for(size_t j = 0; j < PARAMETERS_NUM; j++)
-                    blueprint->buildings[i].parameters[j] = (i64_t) * ((i32_t*)(ptr_bin + j * sizeof(i32_t)));
+                    blueprint->buildings[i].parameters[j] = *((i32_t*)(ptr_bin + j * sizeof(i32_t)));
                 ptr_bin += PARAMETERS_NUM * sizeof(i32_t);
             }
         }
@@ -333,15 +319,13 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     ptr_str += head_length + 1;
 
     // 编码bin head
-#define BIN_HEAD_ENCODE(name, type)\
-    *((type*)(ptr_bin + bin_offset_##name)) = (type)blueprint->name;
-    BIN_HEAD_ENCODE(version, i32_t);
-    BIN_HEAD_ENCODE(cursorOffsetX, i32_t);
-    BIN_HEAD_ENCODE(cursorOffsetY, i32_t);
-    BIN_HEAD_ENCODE(cursorTargetArea, i32_t);
-    BIN_HEAD_ENCODE(dragBoxSizeX, i32_t);
-    BIN_HEAD_ENCODE(dragBoxSizeY, i32_t);
-    BIN_HEAD_ENCODE(primaryAreaIdx, i32_t);
+    *((i32_t*)(ptr_bin + bin_offset_version)) = (i32_t)blueprint->version;
+    *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX)) = (i32_t)blueprint->cursorOffsetX;
+    *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY)) = (i32_t)blueprint->cursorOffsetY;
+    *((i32_t*)(ptr_bin + bin_offset_cursorTargetArea)) = (i32_t)blueprint->cursorTargetArea;
+    *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeX)) = (i32_t)blueprint->dragBoxSizeX;
+    *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeY)) = (i32_t)blueprint->dragBoxSizeY;
+    *((i32_t*)(ptr_bin + bin_offset_primaryAreaIdx)) = (i32_t)blueprint->primaryAreaIdx;
 
 
     // 编码区域总数
@@ -350,16 +334,14 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     // 编码区域数组
     ptr_bin += bin_offset_areas;
     for(size_t i = 0; i < blueprint->numAreas; i++) {
-    #define AREA_ENCODE(name, type)\
-        *((type*)(ptr_bin + area_offset_##name)) = (type)blueprint->areas[i].name;
-        AREA_ENCODE(index, i8_t);
-        AREA_ENCODE(parentIndex, i8_t);
-        AREA_ENCODE(tropicAnchor, i16_t);
-        AREA_ENCODE(areaSegments, i16_t);
-        AREA_ENCODE(anchorLocalOffsetX, i16_t);
-        AREA_ENCODE(anchorLocalOffsetY, i16_t);
-        AREA_ENCODE(width, i16_t);
-        AREA_ENCODE(height, i16_t);
+        *((i8_t*)(ptr_bin + area_offset_index)) = (i8_t)blueprint->areas[i].index;
+        *((i8_t*)(ptr_bin + area_offset_parentIndex)) = (i8_t)blueprint->areas[i].parentIndex;
+        *((i16_t*)(ptr_bin + area_offset_tropicAnchor)) = (i16_t)blueprint->areas[i].tropicAnchor;
+        *((i16_t*)(ptr_bin + area_offset_areaSegments)) = (i16_t)blueprint->areas[i].areaSegments;
+        *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetX)) = (i16_t)blueprint->areas[i].anchorLocalOffsetX;
+        *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetY)) = (i16_t)blueprint->areas[i].anchorLocalOffsetY;
+        *((i16_t*)(ptr_bin + area_offset_width)) = (i16_t)blueprint->areas[i].width;
+        *((i16_t*)(ptr_bin + area_offset_height)) = (i16_t)blueprint->areas[i].height;
         ptr_bin += area_offset_next;
     }
 
@@ -374,41 +356,31 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     // 编码建筑数组
     ptr_bin += sizeof(i32_t);
     for(size_t i = 0; i < blueprint->numBuildings; i++) {
-
-    #define BUILDING_ENCODE(name, type)\
-        {*((type*)(ptr_bin + building_offset_##name)) = (type)blueprint->buildings[i].name;}
-
         *((i32_t*)(ptr_bin + building_offset_index)) = get_idx(&blueprint->buildings[i].index, id_lut, blueprint->numBuildings);
-
-        BUILDING_ENCODE(areaIndex, i8_t);
-
-        // 把建筑从齐次坐标转换成标准形式
+        *((i8_t*)(ptr_bin + building_offset_areaIndex)) = (i8_t)blueprint->buildings[i].areaIndex;
         *((f32_t*)(ptr_bin + building_offset_localOffset_x)) = (f32_t)(blueprint->buildings[i].localOffset.x / blueprint->buildings[i].localOffset.w);
         *((f32_t*)(ptr_bin + building_offset_localOffset_y)) = (f32_t)(blueprint->buildings[i].localOffset.y / blueprint->buildings[i].localOffset.w);
         *((f32_t*)(ptr_bin + building_offset_localOffset_z)) = (f32_t)(blueprint->buildings[i].localOffset.z / blueprint->buildings[i].localOffset.w);
         *((f32_t*)(ptr_bin + building_offset_localOffset_x2)) = (f32_t)(blueprint->buildings[i].localOffset2.x / blueprint->buildings[i].localOffset2.w);
         *((f32_t*)(ptr_bin + building_offset_localOffset_y2)) = (f32_t)(blueprint->buildings[i].localOffset2.y / blueprint->buildings[i].localOffset2.w);
         *((f32_t*)(ptr_bin + building_offset_localOffset_z2)) = (f32_t)(blueprint->buildings[i].localOffset2.z / blueprint->buildings[i].localOffset2.w);
-
-        BUILDING_ENCODE(yaw, f32_t);
-        BUILDING_ENCODE(yaw2, f32_t);
-        BUILDING_ENCODE(itemId, i16_t);
-        BUILDING_ENCODE(modelIndex, i16_t);
-
+        *((f32_t*)(ptr_bin + building_offset_yaw)) = (f32_t)blueprint->buildings[i].yaw;
+        *((f32_t*)(ptr_bin + building_offset_yaw2)) = (f32_t)blueprint->buildings[i].yaw2;
+        *((i16_t*)(ptr_bin + building_offset_itemId)) = (i16_t)blueprint->buildings[i].itemId;
+        *((i16_t*)(ptr_bin + building_offset_modelIndex)) = (i16_t)blueprint->buildings[i].modelIndex;
         *((i32_t*)(ptr_bin + building_offset_tempOutputObjIdx)) = get_idx(&blueprint->buildings[i].tempOutputObjIdx, id_lut, blueprint->numBuildings);
         *((i32_t*)(ptr_bin + building_offset_tempInputObjIdx)) = get_idx(&blueprint->buildings[i].tempInputObjIdx, id_lut, blueprint->numBuildings);
+        *((i8_t*)(ptr_bin + building_offset_outputToSlot)) = (i8_t)blueprint->buildings[i].outputToSlot;
+        *((i8_t*)(ptr_bin + building_offset_inputFromSlot)) = (i8_t)blueprint->buildings[i].inputFromSlot;
+        *((i8_t*)(ptr_bin + building_offset_outputFromSlot)) = (i8_t)blueprint->buildings[i].outputFromSlot;
+        *((i8_t*)(ptr_bin + building_offset_inputToSlot)) = (i8_t)blueprint->buildings[i].inputToSlot;
+        *((i8_t*)(ptr_bin + building_offset_outputOffset)) = (i8_t)blueprint->buildings[i].outputOffset;
+        *((i8_t*)(ptr_bin + building_offset_inputOffset)) = (i8_t)blueprint->buildings[i].inputOffset;
+        *((i16_t*)(ptr_bin + building_offset_recipeId)) = (i16_t)blueprint->buildings[i].recipeId;
+        *((i16_t*)(ptr_bin + building_offset_filterId)) = (i16_t)blueprint->buildings[i].filterId;
 
-        BUILDING_ENCODE(outputToSlot, i8_t);
-        BUILDING_ENCODE(inputFromSlot, i8_t);
-        BUILDING_ENCODE(outputFromSlot, i8_t);
-        BUILDING_ENCODE(inputToSlot, i8_t);
-        BUILDING_ENCODE(outputOffset, i8_t);
-        BUILDING_ENCODE(inputOffset, i8_t);
-        BUILDING_ENCODE(recipeId, i16_t);
-        BUILDING_ENCODE(filterId, i16_t);
-
-        // 编码建筑的参数列表长度
-        BUILDING_ENCODE(numParameters, i16_t);
+       // 编码建筑的参数列表长度
+        *((i16_t*)(ptr_bin + building_offset_numParameters)) = (i16_t)blueprint->buildings[i].numParameters;
 
         // 编码建筑的参数列表
         ptr_bin += building_offset_parameters;
