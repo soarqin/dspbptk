@@ -122,6 +122,7 @@ extern "C" {
         i64_t time;
         i64_t gameVersion[4];
         char* shortDesc;
+        char* desc;
         // base64
         i64_t version;
         i64_t cursorOffsetX;
