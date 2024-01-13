@@ -136,6 +136,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 
     // 解析head
     blueprint->shortDesc = (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
+    blueprint->desc = (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
     int argument_count = sscanf(string, "BLUEPRINT:0,%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",0,%"PRId64",%"PRId64".%"PRId64".%"PRId64".%"PRId64",%[^,],%[^\"]",
         &blueprint->layout,
         &blueprint->icons[0],
@@ -152,7 +153,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
         blueprint->desc
     );
 #ifndef DSPBPTK_NO_ERROR
-    if(argument_count != 12)
+    if(argument_count != 13)
         return blueprint_head_broken;
 #endif
 
@@ -301,7 +302,7 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     void* ptr_bin = bin;
 
     // 输出head
-    sprintf(string, "BLUEPRINT:0,%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",0,%"PRId64",%"PRId64".%"PRId64".%"PRId64".%"PRId64",%s\"",
+    sprintf(string, "BLUEPRINT:0,%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",%"PRId64",0,%"PRId64",%"PRId64".%"PRId64".%"PRId64".%"PRId64",%s,%s\"",
         blueprint->layout,
         blueprint->icons[0],
         blueprint->icons[1],
@@ -313,7 +314,8 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
         blueprint->gameVersion[1],
         blueprint->gameVersion[2],
         blueprint->gameVersion[3],
-        blueprint->shortDesc
+        blueprint->shortDesc == NULL ? "\0" : blueprint->shortDesc,
+        blueprint->desc == NULL ? "\0" : blueprint->desc
     );
     size_t head_length = strlen(string) - 1;
     ptr_str += head_length + 1;
@@ -411,6 +413,7 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
 
 void dspbptk_free_blueprint(blueprint_t* blueprint) {
     free(blueprint->shortDesc);
+    free(blueprint->desc);
     free(blueprint->md5f);
     free(blueprint->areas);
     for(size_t i = 0; i < blueprint->numBuildings; i++) {
