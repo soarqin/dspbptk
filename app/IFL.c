@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
             bp.buildings[j].localOffset.y += xy.y;
 
             if(i != 0 && bp.buildings[j].parameters != 0) {
-                dspbptk_calloc_parameters(&bp.buildings[j], bp.buildings[j].numParameters);
+                bp.buildings[j].parameters = dspbptk_calloc_parameters(bp.buildings[j].numParameters);
                 memcpy(bp.buildings[j].parameters, bp.buildings[j - index_base].parameters, bp.buildings[j].numParameters * sizeof(i64_t));
             }
         }

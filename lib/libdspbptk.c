@@ -83,15 +83,8 @@ size_t gzip_declen(const unsigned char* in, size_t in_nbytes) {
 // dspbptk decode
 ////////////////////////////////////////////////////////////////////////////////
 
-void dspbptk_calloc_parameters(building_t* building, size_t N) {
-    if (N > 0) {
-        building->numParameters = N;
-        building->parameters = (i64_t*)calloc(N, sizeof(i64_t));
-    } else {
-        // TODO 这里应该静默吗？
-        building->numParameters = 0;
-        building->parameters = NULL;
-    }
+i64_t* dspbptk_calloc_parameters(size_t N) {
+    return (i64_t*)calloc(N, sizeof(i64_t));
 }
 
 char* dspbptk_calloc_md5f(void) {
@@ -114,6 +107,67 @@ building_t* dspbptk_calloc_buildings(size_t building_num) {
     return (building_t*)calloc(building_num, sizeof(building_t));
 }
 
+size_t read_bin_head(blueprint_t* blueprint, uint8_t* ptr_bin) {
+    blueprint->version = *((i32_t*)(ptr_bin + bin_offset_version));
+    blueprint->cursorOffsetX = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX));
+    blueprint->cursorOffsetY = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY));
+    blueprint->cursorTargetArea = *((i32_t*)(ptr_bin + bin_offset_cursorTargetArea));
+    blueprint->dragBoxSizeX = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeX));
+    blueprint->dragBoxSizeY = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeY));
+    blueprint->primaryAreaIdx = *((i32_t*)(ptr_bin + bin_offset_primaryAreaIdx));
+    blueprint->numAreas = (size_t) * ((i8_t*)(ptr_bin + bin_offset_numAreas));
+    return bin_offset_areas;
+}
+
+size_t read_area(area_t* area, uint8_t* ptr_bin) {
+    area->index = *((i8_t*)(ptr_bin + area_offset_index));
+    area->parentIndex = *((i8_t*)(ptr_bin + area_offset_parentIndex));
+    area->tropicAnchor = *((i16_t*)(ptr_bin + area_offset_tropicAnchor));
+    area->areaSegments = *((i16_t*)(ptr_bin + area_offset_areaSegments));
+    area->anchorLocalOffsetX = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetX));
+    area->anchorLocalOffsetY = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetY));
+    area->width = *((i16_t*)(ptr_bin + area_offset_width));
+    area->height = *((i16_t*)(ptr_bin + area_offset_height));
+    return area_offset_next;
+}
+
+size_t read_numBuildings(blueprint_t* blueprint, uint8_t* ptr_bin) {
+    blueprint->numBuildings = (size_t) * ((i32_t*)(ptr_bin));
+    return sizeof(int32_t);
+}
+
+size_t read_building(building_t* building, uint8_t* ptr_bin) {
+    building->index = *((i32_t*)(ptr_bin + building_offset_index));
+    building->areaIndex = *((i8_t*)(ptr_bin + building_offset_areaIndex));
+    building->localOffset.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
+    building->localOffset.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y));
+    building->localOffset.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z));
+    building->localOffset.w = 1.0;
+    building->localOffset2.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x2));
+    building->localOffset2.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y2));
+    building->localOffset2.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z2));
+    building->localOffset2.w = 1.0;
+    building->yaw = *((f32_t*)(ptr_bin + building_offset_yaw));
+    building->yaw2 = *((f32_t*)(ptr_bin + building_offset_yaw2));
+    building->itemId = *((i16_t*)(ptr_bin + building_offset_itemId));
+    building->modelIndex = *((i16_t*)(ptr_bin + building_offset_modelIndex));
+    building->tempOutputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempOutputObjIdx));
+    building->tempInputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempInputObjIdx));
+    building->outputToSlot = *((i8_t*)(ptr_bin + building_offset_outputToSlot));
+    building->inputFromSlot = *((i8_t*)(ptr_bin + building_offset_inputFromSlot));
+    building->outputFromSlot = *((i8_t*)(ptr_bin + building_offset_outputFromSlot));
+    building->inputToSlot = *((i8_t*)(ptr_bin + building_offset_inputToSlot));
+    building->outputOffset = *((i8_t*)(ptr_bin + building_offset_outputOffset));
+    building->inputOffset = *((i8_t*)(ptr_bin + building_offset_inputOffset));
+    building->recipeId = *((i16_t*)(ptr_bin + building_offset_recipeId));
+    building->filterId = *((i16_t*)(ptr_bin + building_offset_filterId));
+    building->numParameters = *((i16_t*)(ptr_bin + building_offset_numParameters));
+    building->parameters = dspbptk_calloc_parameters(building->numParameters);
+    for (size_t j = 0; j < building->numParameters; j++)
+        building->parameters[j] = *((i32_t*)((ptr_bin + building_offset_parameters) + j * sizeof(i32_t)));
+    return building_offset_parameters + building->numParameters * sizeof(i32_t);
+}
+
 dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string) {
     // 初始化结构体，置零
     memset(blueprint, 0, sizeof(blueprint_t));
@@ -121,7 +175,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     // 获取输入的字符串的长度
     const size_t string_length = strlen(string);
 
-    // 检查是不是蓝图
+    // 检查是不是蓝图：蓝图head标识为"BLUEPRINT:"，直接检查即可判定是否为蓝图
 #ifndef DSPBPTK_NO_ERROR
     if (string_length < 10)
         return not_blueprint;
@@ -129,7 +183,8 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
         return not_blueprint;
 #endif
 
-    // 根据双引号标记字符串
+    // 蓝图的结构：head标识 + head明文数据 + '\"' + base64 + '\"' + MD5F
+    // 根据双引号即可分割字符串，计算出head和base64的位置和长度
     const char* head = string;
     const char* base64 = strchr(string, (int)'\"') + 1;
     const char* md5f = string + string_length - MD5F_LENGTH;
@@ -140,7 +195,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     const size_t head_length = (size_t)(base64 - head - 1);
     const size_t base64_length = (size_t)(md5f - base64 - 1);
 
-    // 解析md5f(并校验)
+    // 解析MD5F(并校验)
 #ifndef DSPBPTK_NO_WARNING
     char md5f_check[MD5F_LENGTH + 1] = "\0";
     md5f_str(md5f_check, coder->buffer1, string, head_length + 1 + base64_length);
@@ -150,7 +205,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     blueprint->md5f = dspbptk_calloc_md5f();
     memcpy(blueprint->md5f, md5f, MD5F_LENGTH);
 
-    // 解析head
+    // 解析head明文数据
     blueprint->shortDesc = dspbptk_calloc_shortdesc();
     blueprint->desc = dspbptk_calloc_desc();
     int argument_count = sscanf(string, "BLUEPRINT:0,%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",0,%" PRId64 ",%" PRId64 ".%" PRId64 ".%" PRId64 ".%" PRId64 ",%[^,],%[^\"]",
@@ -168,9 +223,9 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
                                 blueprint->shortDesc,
                                 blueprint->desc);
 #ifndef DSPBPTK_NO_ERROR
-    // FIXME 这里似乎并不能很好的检测shortdesc或者desc为空的情况，需要优化错误判定
+    // FIXME 这里似乎并不能很好的处理shortdesc或者desc为空的情况，需要优化错误判定
     // if(argument_count != 13)
-    if (argument_count < 12)  // 这里argument_count < 12可能会漏掉一些本来应该报错的情况，虽然也只影响错误提示不影响解码就是
+    if (argument_count < 12)  // 暂时改成argument_count < 12，可能会漏掉一些本来应该报错的情况，虽然也只影响报错不影响解码就是了
         return blueprint_head_broken;
 #endif
 
@@ -194,82 +249,25 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             return blueprint_gzip_broken;
 #endif
 
-        // 解析二进制流
-        {
-            // 用于操作二进制流的指针
-            void* ptr_bin = bin;
+        // 用于操作二进制流的指针
+        uint8_t* ptr_bin = bin;
 
-            // 解析二进制流的头
-            blueprint->version = *((i32_t*)(ptr_bin + bin_offset_version));
-            blueprint->cursorOffsetX = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX));
-            blueprint->cursorOffsetY = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY));
-            blueprint->cursorTargetArea = *((i32_t*)(ptr_bin + bin_offset_cursorTargetArea));
-            blueprint->dragBoxSizeX = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeX));
-            blueprint->dragBoxSizeY = *((i32_t*)(ptr_bin + bin_offset_dragBoxSizeY));
-            blueprint->primaryAreaIdx = *((i32_t*)(ptr_bin + bin_offset_primaryAreaIdx));
+        // 解析二进制流的头
+        ptr_bin += read_bin_head(blueprint, ptr_bin);
+        blueprint->areas = dspbptk_calloc_areas(blueprint->numAreas);
 
-            // 解析区域数量
-            const size_t AREA_NUM = (size_t) * ((i8_t*)(ptr_bin + bin_offset_numAreas));
-            blueprint->numAreas = AREA_NUM;
-            blueprint->areas = dspbptk_calloc_areas(AREA_NUM);
+        // 解析区域数组
+        for (size_t i = 0; i < blueprint->numAreas; i++) {
+            ptr_bin += read_area(&blueprint->areas[i], ptr_bin);
+        }
 
-            // 解析区域数组
-            ptr_bin += bin_offset_areas;
-            for (size_t i = 0; i < AREA_NUM; i++) {
-                blueprint->areas[i].index = *((i8_t*)(ptr_bin + area_offset_index));
-                blueprint->areas[i].parentIndex = *((i8_t*)(ptr_bin + area_offset_parentIndex));
-                blueprint->areas[i].tropicAnchor = *((i16_t*)(ptr_bin + area_offset_tropicAnchor));
-                blueprint->areas[i].areaSegments = *((i16_t*)(ptr_bin + area_offset_areaSegments));
-                blueprint->areas[i].anchorLocalOffsetX = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetX));
-                blueprint->areas[i].anchorLocalOffsetY = *((i16_t*)(ptr_bin + area_offset_anchorLocalOffsetY));
-                blueprint->areas[i].width = *((i16_t*)(ptr_bin + area_offset_width));
-                blueprint->areas[i].height = *((i16_t*)(ptr_bin + area_offset_height));
-                ptr_bin += area_offset_next;
-            }
+        // 解析建筑数量
+        ptr_bin += read_numBuildings(blueprint, ptr_bin);
+        blueprint->buildings = dspbptk_calloc_buildings(blueprint->numBuildings);
 
-            // 解析建筑数量
-            const size_t BUILDING_NUM = (size_t) * ((i32_t*)(ptr_bin));
-            blueprint->numBuildings = BUILDING_NUM;
-            blueprint->buildings = dspbptk_calloc_buildings(BUILDING_NUM);
-
-            // 解析建筑数组
-            ptr_bin += sizeof(int32_t);
-            for (size_t i = 0; i < BUILDING_NUM; i++) {
-                blueprint->buildings[i].index = *((i32_t*)(ptr_bin + building_offset_index));
-                blueprint->buildings[i].areaIndex = *((i8_t*)(ptr_bin + building_offset_areaIndex));
-                blueprint->buildings[i].localOffset.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
-                blueprint->buildings[i].localOffset.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y));
-                blueprint->buildings[i].localOffset.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z));
-                blueprint->buildings[i].localOffset.w = 1.0;
-                blueprint->buildings[i].localOffset2.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x2));
-                blueprint->buildings[i].localOffset2.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y2));
-                blueprint->buildings[i].localOffset2.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z2));
-                blueprint->buildings[i].localOffset2.w = 1.0;
-                blueprint->buildings[i].yaw = *((f32_t*)(ptr_bin + building_offset_yaw));
-                blueprint->buildings[i].yaw2 = *((f32_t*)(ptr_bin + building_offset_yaw2));
-                blueprint->buildings[i].itemId = *((i16_t*)(ptr_bin + building_offset_itemId));
-                blueprint->buildings[i].modelIndex = *((i16_t*)(ptr_bin + building_offset_modelIndex));
-                blueprint->buildings[i].tempOutputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempOutputObjIdx));
-                blueprint->buildings[i].tempInputObjIdx = *((i32_t*)(ptr_bin + building_offset_tempInputObjIdx));
-                blueprint->buildings[i].outputToSlot = *((i8_t*)(ptr_bin + building_offset_outputToSlot));
-                blueprint->buildings[i].inputFromSlot = *((i8_t*)(ptr_bin + building_offset_inputFromSlot));
-                blueprint->buildings[i].outputFromSlot = *((i8_t*)(ptr_bin + building_offset_outputFromSlot));
-                blueprint->buildings[i].inputToSlot = *((i8_t*)(ptr_bin + building_offset_inputToSlot));
-                blueprint->buildings[i].outputOffset = *((i8_t*)(ptr_bin + building_offset_outputOffset));
-                blueprint->buildings[i].inputOffset = *((i8_t*)(ptr_bin + building_offset_inputOffset));
-                blueprint->buildings[i].recipeId = *((i16_t*)(ptr_bin + building_offset_recipeId));
-                blueprint->buildings[i].filterId = *((i16_t*)(ptr_bin + building_offset_filterId));
-
-                // 解析建筑的参数列表
-                const size_t PARAMETERS_NUM = *((i16_t*)(ptr_bin + building_offset_numParameters));
-                dspbptk_calloc_parameters(&blueprint->buildings[i], PARAMETERS_NUM);
-
-                // 解析建筑的参数列表
-                ptr_bin += building_offset_parameters;
-                for (size_t j = 0; j < PARAMETERS_NUM; j++)
-                    blueprint->buildings[i].parameters[j] = *((i32_t*)(ptr_bin + j * sizeof(i32_t)));
-                ptr_bin += PARAMETERS_NUM * sizeof(i32_t);
-            }
+        // 解析建筑数组
+        for (size_t i = 0; i < blueprint->numBuildings; i++) {
+            ptr_bin += read_building(&blueprint->buildings[i], ptr_bin);
         }
     }
     return no_error;

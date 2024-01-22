@@ -26,8 +26,7 @@ typedef enum {
     area_offset_anchorLocalOffsetY  = area_offset_anchorLocalOffsetX    + 2,
     area_offset_width               = area_offset_anchorLocalOffsetY    + 2,
     area_offset_height              = area_offset_width                 + 2,
-    area_offset_next                = area_offset_height                + 2,
-    area_offset_buildings           = area_offset_next                  + 4
+    area_offset_next                = area_offset_height                + 2
 }area_offset_t;
 
 typedef enum {
