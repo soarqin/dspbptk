@@ -19,7 +19,6 @@ extern "C" {
 
 // #define DSPBPTK_NO_WARNING
 // #define DSPBPTK_NO_ERROR
-
 // #define DSPBPTK_DEBUG
 
 #ifdef DSPBPTK_DEBUG
@@ -36,7 +35,6 @@ extern "C" {
 
     typedef enum {
         no_error = 0,
-
         out_of_memory,
         not_blueprint,
         blueprint_head_broken,
@@ -54,6 +52,7 @@ extern "C" {
 
 #define MD5F_LENGTH 32
 #define SHORTDESC_MAX_LENGTH 4096
+#define DESC_MAX_LENGTH 4096
 #define BLUEPRINT_MAX_LENGTH 134217728  // 128mb. 1048576 * 61 * 3/4 = 85284181.333 < 134217728.
 
 #define OBJ_NULL (-1)

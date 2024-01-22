@@ -15,7 +15,6 @@
  */
 size_t base64_enc(const void* in, size_t inlen, char* out) {
     return chromium_base64_encode(out, in, inlen);
-    // return _tb64e((unsigned char*)in, inlen, (unsigned char*)out);
 }
 
 /**
@@ -95,6 +94,26 @@ void dspbptk_calloc_parameters(building_t* building, size_t N) {
     }
 }
 
+char* dspbptk_calloc_md5f(void) {
+    return (char*)calloc(MD5F_LENGTH + 1, sizeof(char));
+}
+
+char* dspbptk_calloc_shortdesc(void) {
+    return (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
+}
+
+char* dspbptk_calloc_desc(void) {
+    return (char*)calloc(DESC_MAX_LENGTH + 1, sizeof(char));
+}
+
+area_t* dspbptk_calloc_areas(size_t area_num) {
+    return (area_t*)calloc(area_num, sizeof(area_t));
+}
+
+building_t* dspbptk_calloc_buildings(size_t building_num) {
+    return (building_t*)calloc(building_num, sizeof(building_t));
+}
+
 dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string) {
     // 初始化结构体，置零
     memset(blueprint, 0, sizeof(blueprint_t));
@@ -128,12 +147,12 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     if (memcmp(md5f, md5f_check, MD5F_LENGTH) != 0)
         fprintf(stderr, "Warning: MD5 abnormal!\nthis:\t%s\nactual:\t%s\n", md5f, md5f_check);
 #endif
-    blueprint->md5f = (char*)calloc(MD5F_LENGTH + 1, sizeof(char));
+    blueprint->md5f = dspbptk_calloc_md5f();
     memcpy(blueprint->md5f, md5f, MD5F_LENGTH);
 
     // 解析head
-    blueprint->shortDesc = (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
-    blueprint->desc = (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
+    blueprint->shortDesc = dspbptk_calloc_shortdesc();
+    blueprint->desc = dspbptk_calloc_desc();
     int argument_count = sscanf(string, "BLUEPRINT:0,%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",0,%" PRId64 ",%" PRId64 ".%" PRId64 ".%" PRId64 ".%" PRId64 ",%[^,],%[^\"]",
                                 &blueprint->layout,
                                 &blueprint->icons[0],
@@ -192,7 +211,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             // 解析区域数量
             const size_t AREA_NUM = (size_t) * ((i8_t*)(ptr_bin + bin_offset_numAreas));
             blueprint->numAreas = AREA_NUM;
-            blueprint->areas = (area_t*)calloc(AREA_NUM, sizeof(area_t));
+            blueprint->areas = dspbptk_calloc_areas(AREA_NUM);
 
             // 解析区域数组
             ptr_bin += bin_offset_areas;
@@ -211,7 +230,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             // 解析建筑数量
             const size_t BUILDING_NUM = (size_t) * ((i32_t*)(ptr_bin));
             blueprint->numBuildings = BUILDING_NUM;
-            blueprint->buildings = (building_t*)calloc(BUILDING_NUM, sizeof(building_t));
+            blueprint->buildings = dspbptk_calloc_buildings(BUILDING_NUM);
 
             // 解析建筑数组
             ptr_bin += sizeof(int32_t);
@@ -253,7 +272,6 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
             }
         }
     }
-
     return no_error;
 }
 
