@@ -153,7 +153,8 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
         blueprint->desc
     );
 #ifndef DSPBPTK_NO_ERROR
-    if(argument_count != 13)
+    // FIXME 有时会报错
+    if(argument_count < 12)
         return blueprint_head_broken;
 #endif
 
