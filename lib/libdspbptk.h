@@ -229,7 +229,7 @@ extern "C" {
      * @param BUILDING_NUM 蓝图的建筑总数
      * @return i32_t 原版标准的建筑index
      */
-    i32_t get_idx(i64_t* ObjIdx, index_t* id_lut, size_t BUILDING_NUM);
+    i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t BUILDING_NUM);
 
     i64_t* dspbptk_calloc_parameters(size_t N);
 
