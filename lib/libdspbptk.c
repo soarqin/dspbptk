@@ -168,14 +168,14 @@ size_t write_numBuildings(const blueprint_t* blueprint, void* ptr_bin) {
 size_t read_building(building_t* building, const void* ptr_bin) {
     building->index = *((i32_t*)(ptr_bin + building_offset_index));
     building->areaIndex = *((i8_t*)(ptr_bin + building_offset_areaIndex));
-    building->localOffset.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
-    building->localOffset.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y));
-    building->localOffset.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z));
-    building->localOffset.w = 1.0;
-    building->localOffset2.x = *((f32_t*)(ptr_bin + building_offset_localOffset_x2));
-    building->localOffset2.y = *((f32_t*)(ptr_bin + building_offset_localOffset_y2));
-    building->localOffset2.z = *((f32_t*)(ptr_bin + building_offset_localOffset_z2));
-    building->localOffset2.w = 1.0;
+    building->localOffset[0] = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
+    building->localOffset[1] = *((f32_t*)(ptr_bin + building_offset_localOffset_y));
+    building->localOffset[2] = *((f32_t*)(ptr_bin + building_offset_localOffset_z));
+    building->localOffset[3] = 1.0;
+    building->localOffset2[0] = *((f32_t*)(ptr_bin + building_offset_localOffset_x2));
+    building->localOffset2[1] = *((f32_t*)(ptr_bin + building_offset_localOffset_y2));
+    building->localOffset2[2] = *((f32_t*)(ptr_bin + building_offset_localOffset_z2));
+    building->localOffset2[3] = 1.0;
     building->yaw = *((f32_t*)(ptr_bin + building_offset_yaw));
     building->yaw2 = *((f32_t*)(ptr_bin + building_offset_yaw2));
     building->itemId = *((i16_t*)(ptr_bin + building_offset_itemId));
@@ -200,12 +200,12 @@ size_t read_building(building_t* building, const void* ptr_bin) {
 size_t write_building(const building_t* building, void* ptr_bin, const index_t* id_lut, size_t numBuildings) {
     *((i32_t*)(ptr_bin + building_offset_index)) = get_idx(&building->index, id_lut, numBuildings);
     *((i8_t*)(ptr_bin + building_offset_areaIndex)) = (i8_t)building->areaIndex;
-    *((f32_t*)(ptr_bin + building_offset_localOffset_x)) = (f32_t)(building->localOffset.x / building->localOffset.w);
-    *((f32_t*)(ptr_bin + building_offset_localOffset_y)) = (f32_t)(building->localOffset.y / building->localOffset.w);
-    *((f32_t*)(ptr_bin + building_offset_localOffset_z)) = (f32_t)(building->localOffset.z / building->localOffset.w);
-    *((f32_t*)(ptr_bin + building_offset_localOffset_x2)) = (f32_t)(building->localOffset2.x / building->localOffset2.w);
-    *((f32_t*)(ptr_bin + building_offset_localOffset_y2)) = (f32_t)(building->localOffset2.y / building->localOffset2.w);
-    *((f32_t*)(ptr_bin + building_offset_localOffset_z2)) = (f32_t)(building->localOffset2.z / building->localOffset2.w);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_x)) = (f32_t)(building->localOffset[0] / building->localOffset[3]);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_y)) = (f32_t)(building->localOffset[1] / building->localOffset[3]);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_z)) = (f32_t)(building->localOffset[2] / building->localOffset[3]);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_x2)) = (f32_t)(building->localOffset2[0] / building->localOffset2[3]);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_y2)) = (f32_t)(building->localOffset2[1] / building->localOffset2[3]);
+    *((f32_t*)(ptr_bin + building_offset_localOffset_z2)) = (f32_t)(building->localOffset2[2] / building->localOffset2[3]);
     *((f32_t*)(ptr_bin + building_offset_yaw)) = (f32_t)building->yaw;
     *((f32_t*)(ptr_bin + building_offset_yaw2)) = (f32_t)building->yaw2;
     *((i16_t*)(ptr_bin + building_offset_itemId)) = (i16_t)building->itemId;
@@ -500,69 +500,125 @@ void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, siz
 
 // transf
 
-void rct_to_sph(f64x4_t* rct, f64x4_t* sph) {
-    sph->z = 0.0;
-    sph->w = 1.0;
+// void rct_to_sph(f64x4_t* rct, f64x4_t* sph) {
+//     sph->z = 0.0;
+//     sph->w = 1.0;
+//     // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
+//     double x = 0.0;
+//     double y = 0.0;
+
+//     y = asin(rct->z) * (250.0 / M_PI_2);
+//     x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
+
+//     if (isfinite(y))
+//         sph->y = y;
+//     else
+//         sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
+
+//     if (isfinite(x))
+//         sph->x = x;
+//     else
+//         sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
+
+//     if (!isfinite(x) || !isfinite(y))
+//         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
+// }
+
+void rct_to_sph(vec4 rct, vec4 sph) {
+    sph[2] = 0.0;
+    sph[3] = 1.0;
     // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
     double x = 0.0;
     double y = 0.0;
 
-    y = asin(rct->z) * (250.0 / M_PI_2);
-    x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
+    y = asin(rct[2]) * (250.0 / M_PI_2);
+    x = acos(rct[1] / sqrt(1.0 - rct[2] * rct[2])) * ((rct[0] >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
 
     if (isfinite(y))
-        sph->y = y;
+        sph[1] = y;
     else
-        sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
+        sph[1] = rct[2] >= 0.0 ? 250.0 : -250.0;
 
     if (isfinite(x))
-        sph->x = x;
+        sph[0] = x;
     else
-        sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
+        sph[0] = rct[1] >= 0.0 ? 0.0 : -500.0;
 
     if (!isfinite(x) || !isfinite(y))
-        fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
+        fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct[0], rct[1], rct[2], x, y, sph[0], sph[1]);
 }
 
-void sph_to_rct(f64x4_t* sph, f64x4_t* rct) {
-    rct->z = sin(sph->y / 500.0 * M_PI);
-    const double r = sqrt(1.0 - rct->z * rct->z);
-    rct->x = sin(sph->x / 500.0 * M_PI) * r;
-    rct->y = cos(sph->x / 500.0 * M_PI) * r;
-    // printf("%lf,%lf,%lf\n",rct->x,rct->y,rct->z);
+// void sph_to_rct(f64x4_t* sph, f64x4_t* rct) {
+//     rct->z = sin(sph->y / 500.0 * M_PI);
+//     const double r = sqrt(1.0 - rct->z * rct->z);
+//     rct->x = sin(sph->x / 500.0 * M_PI) * r;
+//     rct->y = cos(sph->x / 500.0 * M_PI) * r;
+//     // printf("%lf,%lf,%lf\n",rct->x,rct->y,rct->z);
+// }
+
+void sph_to_rct(vec4 sph, vec4 rct) {
+    rct[2] = sin(sph[1] / 500.0 * M_PI);
+    const double r = sqrt(1.0 - rct[2] * rct[2]);
+    rct[0] = sin(sph[0] / 500.0 * M_PI) * r;
+    rct[1] = cos(sph[0] / 500.0 * M_PI) * r;
+    // printf("%lf,%lf,%lf\n",rct[0],rct[1],rct[2]);
 }
 
 // FIXME z不等于0的情况
 // TODO 预计算旋转矩阵
-void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec) {
-#if 0
-    building->localOffset.x += vec->x;
-    building->localOffset.y += vec->y;
-    building->localOffset.z += vec->z;
-    building->localOffset2.x += vec->x;
-    building->localOffset2.y += vec->y;
-    building->localOffset2.z += vec->z;
-#else
-    f64mat_4x4_t rot;
-    sph_to_rct(vec, &rot[1]);
-    rot[2] = (f64x4_t){0.0, 0.0, 1.0, 0.0};
-    f64x3_cross(&rot[0], &rot[1], &rot[2]);
-    f64x3_cross(&rot[2], &rot[0], &rot[1]);
-    f64x3_normalize(&rot[0]);
-    f64x3_normalize(&rot[1]);
-    f64x3_normalize(&rot[2]);
+void dspbptk_building_localOffset_add(building_t* building, vec4 vec) {
+    mat4x4 rot = {{0.0}};
+    sph_to_rct(vec, rot[1]);
+    rot[2][2] = 1.0;  // rot[2] = {0.0, 0.0, 1.0, 0.0};
+    vec3_cross(rot[0], rot[1], rot[2]);
+    vec3_cross(rot[2], rot[0], rot[1]);
+    vec3_normalize(rot[0]);
+    vec3_normalize(rot[1]);
+    vec3_normalize(rot[2]);
 
-    f64x4_t rct_offset_old;
-    f64x4_t rct_offset2_old;
-    sph_to_rct(&building->localOffset, &rct_offset_old);
-    sph_to_rct(&building->localOffset2, &rct_offset2_old);
+    vec4 rct_offset_old;
+    vec4 rct_offset2_old;
+    sph_to_rct(building->localOffset, rct_offset_old);
+    sph_to_rct(building->localOffset2, rct_offset2_old);
 
-    f64x4_t rct_offset;
-    f64x4_t rct_offset2;
-    f64x3_dot_f64mat_3x3(&rct_offset, &rct_offset_old, rot);
-    f64x3_dot_f64mat_3x3(&rct_offset2, &rct_offset2_old, rot);
+    vec4 rct_offset;
+    vec4 rct_offset2;
+    vec3_dot_mat3x3(rct_offset, rct_offset_old, rot);
+    vec3_dot_mat3x3(rct_offset2, rct_offset2_old, rot);
 
-    rct_to_sph(&rct_offset, &building->localOffset);
-    rct_to_sph(&rct_offset2, &building->localOffset2);
-#endif
+    rct_to_sph(rct_offset, building->localOffset);
+    rct_to_sph(rct_offset2, building->localOffset2);
 }
+
+// void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec) {
+// #if 0
+//     building->localOffset.x += vec->x;
+//     building->localOffset.y += vec->y;
+//     building->localOffset.z += vec->z;
+//     building->localOffset2.x += vec->x;
+//     building->localOffset2.y += vec->y;
+//     building->localOffset2.z += vec->z;
+// #else
+//     f64mat_4x4_t rot;
+//     sph_to_rct(vec, &rot[1]);
+//     rot[2] = (f64x4_t){0.0, 0.0, 1.0, 0.0};
+//     vec3_cross(&rot[0], &rot[1], &rot[2]);
+//     vec3_cross(&rot[2], &rot[0], &rot[1]);
+//     vec3_normalize(&rot[0]);
+//     vec3_normalize(&rot[1]);
+//     vec3_normalize(&rot[2]);
+
+//     f64x4_t rct_offset_old;
+//     f64x4_t rct_offset2_old;
+//     sph_to_rct(&building->localOffset, &rct_offset_old);
+//     sph_to_rct(&building->localOffset2, &rct_offset2_old);
+
+//     f64x4_t rct_offset;
+//     f64x4_t rct_offset2;
+//     vec3_dot_mat3x3(&rct_offset, &rct_offset_old, rot);
+//     vec3_dot_mat3x3(&rct_offset2, &rct_offset2_old, rot);
+
+//     rct_to_sph(&rct_offset, &building->localOffset);
+//     rct_to_sph(&rct_offset2, &building->localOffset2);
+// #endif
+// }

@@ -86,8 +86,8 @@ typedef struct {
 typedef struct {
     i64_t index;
     i64_t areaIndex;
-    f64x4_t localOffset;
-    f64x4_t localOffset2;
+    vec4 localOffset;
+    vec4 localOffset2;
     f64_t yaw;
     f64_t yaw2;
     i64_t itemId;
@@ -217,9 +217,9 @@ i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t BUILDING_NUM);
 
 void dspbptk_resize(blueprint_t* blueprint, size_t N);
 void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, size_t index_offset);
-void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec);
+void dspbptk_building_localOffset_add(building_t* building, vec4 vec);
 
-void rct_to_sph(f64x4_t* rct, f64x4_t* sph);
+void rct_to_sph(vec4 rct, vec4 sph);
 
 #ifdef __cplusplus
 }
