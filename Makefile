@@ -11,7 +11,6 @@ endif
 
 CC := gcc
 OBJ_opt := app/opt.o
-OBJ_vec := app/vec.o
 OBJ_IFL := app/IFL.o
 OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c lib/chromiumbase64/*.c))
 
@@ -20,7 +19,7 @@ CFLAGS += -O3 -static -s -march=x86-64 -mtune=generic -mavx2 -flto
 # CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
-APPS = opt vec IFL
+APPS = opt IFL
 
 .PHONY: clean
 
@@ -29,9 +28,6 @@ $(APPS): $$(OBJ_$$@) libdspbptk.a
 	$(CC) -o $@ $(CFLAGS) $(CFLAGS_APP) $^
 
 $(OBJ_opt): %.o: %.c
-	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
-
-$(OBJ_vec): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
 $(OBJ_IFL): %.o: %.c
@@ -49,4 +45,4 @@ libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK)
 all: $(APPS) libdspbptk.a libdspbptk$(SHLIB_SUFFIX)
 
 clean:
-	rm -f $(OBJ_LIBDSPBPTK) opt* vec* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
+	rm -f $(OBJ_LIBDSPBPTK) opt* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o

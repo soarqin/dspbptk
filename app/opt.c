@@ -41,8 +41,8 @@ int cmp_building(const void* p_a, const void* p_b) {
     // 区域也相同时，根据y>x>z的优先级排序
     const double Ky = 256.0;
     const double Kx = 1024.0;
-    double score_pos_a = (a->localOffset.y * Ky + a->localOffset.x) * Kx + a->localOffset.z;
-    double score_pos_b = (b->localOffset.y * Ky + b->localOffset.x) * Kx + b->localOffset.z;
+    double score_pos_a = (a->localOffset[1] * Ky + a->localOffset[0]) * Kx + a->localOffset[2];
+    double score_pos_b = (b->localOffset[1] * Ky + b->localOffset[0]) * Kx + b->localOffset[2];
     return score_pos_a < score_pos_b ? 1 : -1;
 }
 
@@ -145,12 +145,12 @@ int main(int argc, char* argv[]) {
     // 优化：坐标归正
     if (opt_level >= 3) {
         for (uint64_t i = 0; i < bp.numBuildings; i++) {
-            bp.buildings[i].localOffset.x = try_round(bp.buildings[i].localOffset.x, 300);
-            bp.buildings[i].localOffset.y = try_round(bp.buildings[i].localOffset.y, 300);
-            bp.buildings[i].localOffset.z = try_round(bp.buildings[i].localOffset.z, 8);
-            bp.buildings[i].localOffset2.x = try_round(bp.buildings[i].localOffset2.x, 300);
-            bp.buildings[i].localOffset2.y = try_round(bp.buildings[i].localOffset2.y, 300);
-            bp.buildings[i].localOffset2.z = try_round(bp.buildings[i].localOffset2.z, 8);
+            bp.buildings[i].localOffset[0] = try_round(bp.buildings[i].localOffset[0], 300);
+            bp.buildings[i].localOffset[1] = try_round(bp.buildings[i].localOffset[1], 300);
+            bp.buildings[i].localOffset[2] = try_round(bp.buildings[i].localOffset[2], 8);
+            bp.buildings[i].localOffset2[0] = try_round(bp.buildings[i].localOffset2[0], 300);
+            bp.buildings[i].localOffset2[1] = try_round(bp.buildings[i].localOffset2[1], 300);
+            bp.buildings[i].localOffset2[2] = try_round(bp.buildings[i].localOffset2[2], 8);
             bp.buildings[i].yaw = try_round(bp.buildings[i].yaw, 1);
             bp.buildings[i].yaw2 = try_round(bp.buildings[i].yaw2, 1);
         }

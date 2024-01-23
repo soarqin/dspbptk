@@ -90,11 +90,11 @@ int main(int argc, char* argv[]) {
         errorlevel = -1;
         goto error;
     }
-    f64x4_t* pos_list = calloc(num_list, sizeof(f64x4_t));
+    vec4* pos_list = (vec4*)calloc(num_list, sizeof(vec4));
     for (i64_t i = 0; i < num_list; i++) {
-        fscanf(fpl, "%lf", &pos_list[i].x);
-        fscanf(fpl, "%lf", &pos_list[i].y);
-        fscanf(fpl, "%lf", &pos_list[i].z);
+        fscanf(fpl, "%lf", &pos_list[i][0]);
+        fscanf(fpl, "%lf", &pos_list[i][1]);
+        fscanf(fpl, "%lf", &pos_list[i][2]);
     }
     fclose(fpl);
 
@@ -132,12 +132,12 @@ int main(int argc, char* argv[]) {
 
     // 检查是不是单建筑蓝图，如果是把坐标归零
     if (bp.numBuildings == 1) {
-        bp.buildings[0].localOffset.x = 0.0;
-        bp.buildings[0].localOffset.y = 0.0;
-        bp.buildings[0].localOffset.z = 0.0;
-        bp.buildings[0].localOffset2.x = 0.0;
-        bp.buildings[0].localOffset2.y = 0.0;
-        bp.buildings[0].localOffset2.z = 0.0;
+        bp.buildings[0].localOffset[0] = 0.0;
+        bp.buildings[0].localOffset[1] = 0.0;
+        bp.buildings[0].localOffset[2] = 0.0;
+        bp.buildings[0].localOffset2[0] = 0.0;
+        bp.buildings[0].localOffset2[1] = 0.0;
+        bp.buildings[0].localOffset2[2] = 0.0;
         fprintf(stderr, "检测到单建筑蓝图，坐标已归正至原点\n");
     }
 
@@ -153,10 +153,10 @@ int main(int argc, char* argv[]) {
 
     for (i64_t i = 0; i < num_list; i++) {
         i64_t index_base = i * old_numBuildings;
-        f64x4_t vec;
-        rct_to_sph(&pos_list[i], &vec);
+        mat4x4 rot = {{0.0}};
+        set_rot_mat(pos_list[i], rot);
         for (int j = index_base; j < index_base + old_numBuildings; j++) {
-            dspbptk_building_localOffset_add(&bp.buildings[j], &vec);
+            dspbptk_building_localOffset_rotation(&bp.buildings[j], rot);
         }
     }
 

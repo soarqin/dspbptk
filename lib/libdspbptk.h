@@ -217,9 +217,12 @@ i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t BUILDING_NUM);
 
 void dspbptk_resize(blueprint_t* blueprint, size_t N);
 void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, size_t index_offset);
-void dspbptk_building_localOffset_add(building_t* building, vec4 vec);
 
 void rct_to_sph(vec4 rct, vec4 sph);
+void set_rot_mat(vec4 vec, mat4x4 rot);
+void dspbptk_building_localOffset_rotation(building_t* building, mat4x4 rot);
+
+
 
 #ifdef __cplusplus
 }

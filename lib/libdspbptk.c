@@ -500,30 +500,6 @@ void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, siz
 
 // transf
 
-// void rct_to_sph(f64x4_t* rct, f64x4_t* sph) {
-//     sph->z = 0.0;
-//     sph->w = 1.0;
-//     // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
-//     double x = 0.0;
-//     double y = 0.0;
-
-//     y = asin(rct->z) * (250.0 / M_PI_2);
-//     x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
-
-//     if (isfinite(y))
-//         sph->y = y;
-//     else
-//         sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
-
-//     if (isfinite(x))
-//         sph->x = x;
-//     else
-//         sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
-
-//     if (!isfinite(x) || !isfinite(y))
-//         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
-// }
-
 void rct_to_sph(vec4 rct, vec4 sph) {
     sph[2] = 0.0;
     sph[3] = 1.0;
@@ -548,26 +524,17 @@ void rct_to_sph(vec4 rct, vec4 sph) {
         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct[0], rct[1], rct[2], x, y, sph[0], sph[1]);
 }
 
-// void sph_to_rct(f64x4_t* sph, f64x4_t* rct) {
-//     rct->z = sin(sph->y / 500.0 * M_PI);
-//     const double r = sqrt(1.0 - rct->z * rct->z);
-//     rct->x = sin(sph->x / 500.0 * M_PI) * r;
-//     rct->y = cos(sph->x / 500.0 * M_PI) * r;
-//     // printf("%lf,%lf,%lf\n",rct->x,rct->y,rct->z);
-// }
-
 void sph_to_rct(vec4 sph, vec4 rct) {
     rct[2] = sin(sph[1] / 500.0 * M_PI);
     const double r = sqrt(1.0 - rct[2] * rct[2]);
     rct[0] = sin(sph[0] / 500.0 * M_PI) * r;
     rct[1] = cos(sph[0] / 500.0 * M_PI) * r;
-    // printf("%lf,%lf,%lf\n",rct[0],rct[1],rct[2]);
+    vec3_normalize(rct);
 }
 
 // FIXME z不等于0的情况
-// TODO 预计算旋转矩阵
-void dspbptk_building_localOffset_add(building_t* building, vec4 vec) {
-    mat4x4 rot = {{0.0}};
+
+void set_rot_mat(vec4 vec, mat4x4 rot) {  // 必须传入零矩阵
     sph_to_rct(vec, rot[1]);
     rot[2][2] = 1.0;  // rot[2] = {0.0, 0.0, 1.0, 0.0};
     vec3_cross(rot[0], rot[1], rot[2]);
@@ -575,50 +542,29 @@ void dspbptk_building_localOffset_add(building_t* building, vec4 vec) {
     vec3_normalize(rot[0]);
     vec3_normalize(rot[1]);
     vec3_normalize(rot[2]);
+}
+
+void dspbptk_building_localOffset_rotation(building_t* building, mat4x4 rot) {
+    // z不参与坐标转换计算，单独处理避免精度丢失
+    double z_old = building->localOffset[2];
+    double z2_old = building->localOffset[2];
 
     vec4 rct_offset_old;
     vec4 rct_offset2_old;
     sph_to_rct(building->localOffset, rct_offset_old);
     sph_to_rct(building->localOffset2, rct_offset2_old);
 
-    vec4 rct_offset;
-    vec4 rct_offset2;
-    vec3_dot_mat3x3(rct_offset, rct_offset_old, rot);
-    vec3_dot_mat3x3(rct_offset2, rct_offset2_old, rot);
+    vec4 rct_offset_new;
+    vec4 rct_offset2_new;
+    vec3_dot_mat3x3(rct_offset_new, rct_offset_old, rot);
+    vec3_dot_mat3x3(rct_offset2_new, rct_offset2_old, rot);
 
-    rct_to_sph(rct_offset, building->localOffset);
-    rct_to_sph(rct_offset2, building->localOffset2);
+    vec3_normalize(rct_offset_new);
+    vec3_normalize(rct_offset2_new);
+
+    rct_to_sph(rct_offset_new, building->localOffset);
+    rct_to_sph(rct_offset2_new, building->localOffset2);
+
+    building->localOffset[2] = z_old;
+    building->localOffset2[2] = z2_old;
 }
-
-// void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec) {
-// #if 0
-//     building->localOffset.x += vec->x;
-//     building->localOffset.y += vec->y;
-//     building->localOffset.z += vec->z;
-//     building->localOffset2.x += vec->x;
-//     building->localOffset2.y += vec->y;
-//     building->localOffset2.z += vec->z;
-// #else
-//     f64mat_4x4_t rot;
-//     sph_to_rct(vec, &rot[1]);
-//     rot[2] = (f64x4_t){0.0, 0.0, 1.0, 0.0};
-//     vec3_cross(&rot[0], &rot[1], &rot[2]);
-//     vec3_cross(&rot[2], &rot[0], &rot[1]);
-//     vec3_normalize(&rot[0]);
-//     vec3_normalize(&rot[1]);
-//     vec3_normalize(&rot[2]);
-
-//     f64x4_t rct_offset_old;
-//     f64x4_t rct_offset2_old;
-//     sph_to_rct(&building->localOffset, &rct_offset_old);
-//     sph_to_rct(&building->localOffset2, &rct_offset2_old);
-
-//     f64x4_t rct_offset;
-//     f64x4_t rct_offset2;
-//     vec3_dot_mat3x3(&rct_offset, &rct_offset_old, rot);
-//     vec3_dot_mat3x3(&rct_offset2, &rct_offset2_old, rot);
-
-//     rct_to_sph(&rct_offset, &building->localOffset);
-//     rct_to_sph(&rct_offset2, &building->localOffset2);
-// #endif
-// }
