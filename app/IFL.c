@@ -1,5 +1,4 @@
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,28 +14,6 @@ uint64_t get_timestamp(void) {
 
 double d_t(uint64_t t1, uint64_t t0) {
     return (double)(t1 - t0) / 1000000.0;
-}
-
-void xyz_to_xy(f64x4_t* rct, f64x4_t* sph) {
-    // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
-    double x = 0.0;
-    double y = 0.0;
-
-    y = asin(rct->z) * (250.0 / M_PI_2);
-    x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
-
-    if (isfinite(y))
-        sph->y = y;
-    else
-        sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
-
-    if (isfinite(x))
-        sph->x = x;
-    else
-        sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
-
-    if (!isfinite(x) || !isfinite(y))
-        fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
 }
 
 void print_help_doc() {
@@ -176,10 +153,10 @@ int main(int argc, char* argv[]) {
 
     for (i64_t i = 0; i < num_list; i++) {
         i64_t index_base = i * old_numBuildings;
-        f64x4_t xy;
-        xyz_to_xy(&pos_list[i], &xy);
+        f64x4_t vec;
+        rct_to_sph(&pos_list[i], &vec);
         for (int j = index_base; j < index_base + old_numBuildings; j++) {
-            dspbptk_building_localOffset_add(&bp.buildings[j], xy);
+            dspbptk_building_localOffset_add(&bp.buildings[j], &vec);
         }
     }
 

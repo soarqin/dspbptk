@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
         i64_t index_base = i * old_numBuildings;
         f64x4_t xy = {i * ax, i * ay, i * az, 0.0};
         for (int j = index_base; j < index_base + old_numBuildings; j++) {
-            dspbptk_building_localOffset_add(&bp.buildings[j], xy);
+            dspbptk_building_localOffset_add(&bp.buildings[j], &xy);
         }
     }
 
