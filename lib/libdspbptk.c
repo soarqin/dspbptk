@@ -534,8 +534,10 @@ void sph_to_rct(vec4 sph, vec4 rct) {
 
 // FIXME z不等于0的情况
 
-void set_rot_mat(vec4 vec, mat4x4 rot) {  // 必须传入零矩阵
-    sph_to_rct(vec, rot[1]);
+void set_rot_mat(vec4 rct_vec, mat4x4 rot) {  // 必须传入零矩阵
+    rot[1][0] = rct_vec[0];
+    rot[1][1] = rct_vec[1];
+    rot[1][2] = rct_vec[2];
     rot[2][2] = 1.0;  // rot[2] = {0.0, 0.0, 1.0, 0.0};
     vec3_cross(rot[0], rot[1], rot[2]);
     vec3_cross(rot[2], rot[0], rot[1]);
