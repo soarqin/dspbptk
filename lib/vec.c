@@ -13,3 +13,10 @@ void f64x3_dot_f64mat_3x3(f64x4_t* b, f64x4_t* a, f64mat_4x4_t m) {
     b->y = a->x * m[0].y + a->y * m[1].y + a->z * m[2].y;
     b->z = a->x * m[0].z + a->y * m[1].z + a->z * m[2].z;
 }
+
+void f64x3_normalize(f64x4_t* a) {
+    double length = sqrt(a->x * a->x + a->y * a->y + a->z * a->z);
+    a->x /= length;
+    a->y /= length;
+    a->z /= length;
+}

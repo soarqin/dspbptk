@@ -548,11 +548,9 @@ void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec) {
     rot[2] = (f64x4_t){0.0, 0.0, 1.0, 0.0};
     f64x3_cross(&rot[0], &rot[1], &rot[2]);
     f64x3_cross(&rot[2], &rot[0], &rot[1]);
-
-    printf("%lf,%lf,%lf\n%lf,%lf,%lf\n%lf,%lf,%lf\n",
-           rot[0].x, rot[0].y, rot[0].z,
-           rot[1].x, rot[1].y, rot[1].z,
-           rot[2].x, rot[2].y, rot[2].z);
+    f64x3_normalize(&rot[0]);
+    f64x3_normalize(&rot[1]);
+    f64x3_normalize(&rot[2]);
 
     f64x4_t rct_offset_old;
     f64x4_t rct_offset2_old;
