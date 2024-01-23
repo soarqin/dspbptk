@@ -231,10 +231,9 @@ extern "C" {
      */
     i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t BUILDING_NUM);
 
-    i64_t* dspbptk_calloc_parameters(size_t N);
-
     void dspbptk_resize(blueprint_t* blueprint, size_t N);
-
+    void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, size_t index_offset);
+    void dspbptk_building_localOffset_add(building_t* building, f64x4_t vec);
 
 #ifdef __cplusplus
 }

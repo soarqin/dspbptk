@@ -1,9 +1,9 @@
+#include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
-#include <math.h>
-#include <float.h>
+#include <unistd.h>
 
 #include "libdspbptk.h"
 
@@ -25,17 +25,17 @@ void xyz_to_xy(f64x4_t* rct, f64x4_t* sph) {
     y = asin(rct->z) * (250.0 / M_PI_2);
     x = acos(rct->y / sqrt(1.0 - rct->z * rct->z)) * ((rct->x >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
 
-    if(isfinite(y))
+    if (isfinite(y))
         sph->y = y;
     else
         sph->y = rct->z >= 0.0 ? 250.0 : -250.0;
 
-    if(isfinite(x))
+    if (isfinite(x))
         sph->x = x;
     else
         sph->x = rct->y >= 0.0 ? 0.0 : -500.0;
 
-    if(!isfinite(x) || !isfinite(y))
+    if (!isfinite(x) || !isfinite(y))
         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct->x, rct->y, rct->z, x, y, sph->x, sph->y);
 }
 
@@ -50,15 +50,14 @@ void print_help_doc() {
         "l<file>       Coordinate List File.\n"
         "N[num]        Num of Coordinate.\n"
         "o<file>       Output file(blueprint).\n"
-        "\n"
-    );
+        "\n");
 }
 
 int main(int argc, char* argv[]) {
     // dspbptk的错误值
     dspbptk_error_t errorlevel;
 
-    if(argc <= 1) {
+    if (argc <= 1) {
         errorlevel = -1;
         goto error;
     }
@@ -74,48 +73,48 @@ int main(int argc, char* argv[]) {
 
     char arg;
 
-    while((arg = getopt(argc, argv, options)) != -1) {
-        switch(arg) {
-        case 'h': {
-            errorlevel = 0;
-            goto error;
-        }
-
-        case 'i': {
-            bp_path_i = optarg;
-            break;
-        }
-
-        case 'l': {
-            list_path = optarg;
-            break;
-        }
-
-        case 'N': {
-            sscanf(optarg, "%lld", &num_list);
-            if(num_list < 1) {
-                fprintf(stderr, "非法参数N=%lld", num_list);
-                errorlevel = -1;
+    while ((arg = getopt(argc, argv, options)) != -1) {
+        switch (arg) {
+            case 'h': {
+                errorlevel = 0;
                 goto error;
             }
-            break;
-        }
-        case 'o': {
-            bp_path_o = optarg;
-            break;
-        }
+
+            case 'i': {
+                bp_path_i = optarg;
+                break;
+            }
+
+            case 'l': {
+                list_path = optarg;
+                break;
+            }
+
+            case 'N': {
+                sscanf(optarg, "%lld", &num_list);
+                if (num_list < 1) {
+                    fprintf(stderr, "非法参数N=%lld", num_list);
+                    errorlevel = -1;
+                    goto error;
+                }
+                break;
+            }
+            case 'o': {
+                bp_path_o = optarg;
+                break;
+            }
         }
     }
 
     // 读取坐标列表
     FILE* fpl = fopen(list_path, "r");
-    if(fpl == NULL) {
+    if (fpl == NULL) {
         fprintf(stderr, "Error: Cannot read file:\"%s\".\n", list_path);
         errorlevel = -1;
         goto error;
     }
     f64x4_t* pos_list = calloc(num_list, sizeof(f64x4_t));
-    for(i64_t i = 0; i < num_list; i++) {
+    for (i64_t i = 0; i < num_list; i++) {
         fscanf(fpl, "%lf", &pos_list[i].x);
         fscanf(fpl, "%lf", &pos_list[i].y);
         fscanf(fpl, "%lf", &pos_list[i].z);
@@ -124,7 +123,7 @@ int main(int argc, char* argv[]) {
 
     // 打开蓝图文件
     FILE* fpi = fopen(bp_path_i, "r");
-    if(fpi == NULL) {
+    if (fpi == NULL) {
         fprintf(stderr, "Error: Cannot read file:\"%s\".\n", bp_path_i);
         errorlevel = -1;
         goto error;
@@ -148,14 +147,14 @@ int main(int argc, char* argv[]) {
     errorlevel = blueprint_decode(&coder, &bp, str_i);
     uint64_t t_dec_1 = get_timestamp();
     fprintf(stderr, "dec time = %.3lf ms\n", d_t(t_dec_1, t_dec_0));
-    if(errorlevel) {
+    if (errorlevel) {
         goto error;
     }
 
     uint64_t t_edt_0 = get_timestamp();
 
     // 检查是不是单建筑蓝图，如果是把坐标归零
-    if(bp.numBuildings == 1) {
+    if (bp.numBuildings == 1) {
         bp.buildings[0].localOffset.x = 0.0;
         bp.buildings[0].localOffset.y = 0.0;
         bp.buildings[0].localOffset.z = 0.0;
@@ -170,34 +169,17 @@ int main(int argc, char* argv[]) {
     dspbptk_resize(&bp, bp.numBuildings * num_list);
 
     // 蓝图处理
-    // TODO 兼容拓展标准的蓝图，这个过程可能需要重新编号
-    for(i64_t i = 1; i < num_list; i++) {
+    for (i64_t i = 1; i < num_list; i++) {
         i64_t index_base = i * old_numBuildings;
-
-    // 复制蓝图
-        memcpy(&bp.buildings[index_base], &bp.buildings[0], sizeof(building_t) * old_numBuildings);
+        dspbptk_building_copy(&bp.buildings[index_base], &bp.buildings[0], old_numBuildings, index_base);
     }
 
-    for(i64_t i = 0; i < num_list; i++) {
+    for (i64_t i = 0; i < num_list; i++) {
+        i64_t index_base = i * old_numBuildings;
         f64x4_t xy;
         xyz_to_xy(&pos_list[i], &xy);
-
-        i64_t index_base = i * old_numBuildings;
-
-        for(int j = index_base; j < index_base + old_numBuildings; j++) {
-            bp.buildings[j].index += index_base;
-            if(bp.buildings[j].tempOutputObjIdx != OBJ_NULL)
-                bp.buildings[j].tempOutputObjIdx += index_base;
-            if(bp.buildings[j].tempInputObjIdx != OBJ_NULL)
-                bp.buildings[j].tempInputObjIdx += index_base;
-
-            bp.buildings[j].localOffset.x += xy.x;
-            bp.buildings[j].localOffset.y += xy.y;
-
-            if(i != 0 && bp.buildings[j].parameters != 0) {
-                bp.buildings[j].parameters = dspbptk_calloc_parameters(bp.buildings[j].numParameters);
-                memcpy(bp.buildings[j].parameters, bp.buildings[j - index_base].parameters, bp.buildings[j].numParameters * sizeof(i64_t));
-            }
+        for (int j = index_base; j < index_base + old_numBuildings; j++) {
+            dspbptk_building_localOffset_add(&bp.buildings[j], xy);
         }
     }
 
@@ -209,7 +191,7 @@ int main(int argc, char* argv[]) {
     errorlevel = blueprint_encode(&coder, &bp, str_o);
     uint64_t t_enc_1 = get_timestamp();
     fprintf(stderr, "enc time = %.3lf ms\n", d_t(t_enc_1, t_enc_0));
-    if(errorlevel) {
+    if (errorlevel) {
         goto error;
     }
 
@@ -217,9 +199,9 @@ int main(int argc, char* argv[]) {
     size_t strlen_i = strlen(str_i);
     size_t strlen_o = strlen(str_o);
     fprintf(stderr, "strlen_i = %zu\nstrlen_o = %zu (%.3lf%%)\n",
-        strlen_i, strlen_o, ((double)strlen_o / (double)strlen_i - 1.0) * 100.0);
+            strlen_i, strlen_o, ((double)strlen_o / (double)strlen_i - 1.0) * 100.0);
     FILE* fpo = fopen(bp_path_o, "w");
-    if(fpo == NULL) {
+    if (fpo == NULL) {
         fprintf(stderr, "Error: Cannot overwrite file:\"%s\".\n", bp_path_i);
         errorlevel = -1;
         goto error;

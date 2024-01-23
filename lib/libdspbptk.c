@@ -1,5 +1,5 @@
-#include "libdspbptk.h"
 #include "enum_offset.h"
+#include "libdspbptk.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // 这些函数用于解耦dspbptk与底层库依赖，如果需要更换底层库时只要换掉这几个函数里就行
@@ -481,4 +481,28 @@ void dspbptk_free_coder(dspbptk_coder_t* coder) {
 void dspbptk_resize(blueprint_t* blueprint, size_t N) {
     blueprint->numBuildings = N;
     blueprint->buildings = realloc(blueprint->buildings, sizeof(building_t) * N);
+}
+
+void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, size_t index_offset) {
+    memcpy(dst, src, sizeof(building_t) * N);
+    for (size_t i = 0; i < N; i++) {
+        dst[i].index += index_offset;
+        if (dst[i].tempOutputObjIdx != OBJ_NULL)
+            dst[i].tempOutputObjIdx += index_offset;
+        if (dst[i].tempInputObjIdx != OBJ_NULL)
+            dst[i].tempInputObjIdx += index_offset;
+        if (src[i].numParameters > 0) {
+            dst[i].parameters = dspbptk_calloc_parameters(dst[i].numParameters);
+            memcpy(dst[i].parameters, src[i].parameters, src[i].numParameters * sizeof(int32_t));
+        }
+    }
+}
+
+void dspbptk_building_localOffset_add(building_t* building, f64x4_t vec) {
+#if 1
+    building->localOffset.x += vec.x;
+    building->localOffset.y += vec.y;
+    building->localOffset2.x += vec.x;
+    building->localOffset2.y += vec.y;
+#endif
 }
