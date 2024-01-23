@@ -130,17 +130,6 @@ int main(int argc, char* argv[]) {
 
     uint64_t t_edt_0 = get_timestamp();
 
-    // 检查是不是单建筑蓝图，如果是把坐标归零
-    if (bp.numBuildings == 1) {
-        bp.buildings[0].localOffset[0] = 0.0;
-        bp.buildings[0].localOffset[1] = 0.0;
-        bp.buildings[0].localOffset[2] = 0.0;
-        bp.buildings[0].localOffset2[0] = 0.0;
-        bp.buildings[0].localOffset2[1] = 0.0;
-        bp.buildings[0].localOffset2[2] = 0.0;
-        fprintf(stderr, "检测到单建筑蓝图，坐标已归正至原点\n");
-    }
-
     // 调整蓝图大小
     i64_t old_numBuildings = bp.numBuildings;
     dspbptk_resize(&bp, bp.numBuildings * num_list);

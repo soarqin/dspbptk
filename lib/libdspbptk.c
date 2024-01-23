@@ -532,8 +532,6 @@ void sph_to_rct(vec4 sph, vec4 rct) {
     vec3_normalize(rct);
 }
 
-// FIXME z不等于0的情况
-
 void set_rot_mat(vec4 rct_vec, mat4x4 rot) {  // 必须传入零矩阵
     rot[1][0] = rct_vec[0];
     rot[1][1] = rct_vec[1];
