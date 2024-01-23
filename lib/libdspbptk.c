@@ -529,6 +529,7 @@ void sph_to_rct(f64x4_t* sph, f64x4_t* rct) {
     const double r = sqrt(1.0 - rct->z * rct->z);
     rct->x = sin(sph->x / 500.0 * M_PI) * r;
     rct->y = cos(sph->x / 500.0 * M_PI) * r;
+    // printf("%lf,%lf,%lf\n",rct->x,rct->y,rct->z);
 }
 
 // FIXME z不等于0的情况
@@ -542,12 +543,16 @@ void dspbptk_building_localOffset_add(building_t* building, f64x4_t* vec) {
     building->localOffset2.y += vec->y;
     building->localOffset2.z += vec->z;
 #else
-    // 计算旋转矩阵
     f64mat_4x4_t rot;
     sph_to_rct(vec, &rot[1]);
     rot[2] = (f64x4_t){0.0, 0.0, 1.0, 0.0};
-    f64x3_cross(&rot[0], &rot[2], &rot[1]);
-    f64x3_cross(&rot[2], &rot[1], &rot[0]);
+    f64x3_cross(&rot[0], &rot[1], &rot[2]);
+    f64x3_cross(&rot[2], &rot[0], &rot[1]);
+
+    printf("%lf,%lf,%lf\n%lf,%lf,%lf\n%lf,%lf,%lf\n",
+           rot[0].x, rot[0].y, rot[0].z,
+           rot[1].x, rot[1].y, rot[1].z,
+           rot[2].x, rot[2].y, rot[2].z);
 
     f64x4_t rct_offset_old;
     f64x4_t rct_offset2_old;
