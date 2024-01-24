@@ -501,13 +501,13 @@ void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, siz
 void rct_to_sph(const vec4 rct, vec4 sph) {
     sph[2] = 0.0;
     sph[3] = 1.0;
-    // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
     double x = 0.0;
     double y = 0.0;
 
     y = asin(rct[2]) * (250.0 / M_PI_2);
     x = acos(rct[1] / sqrt(1.0 - rct[2] * rct[2])) * ((rct[0] >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
 
+    // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
     if (isfinite(y))
         sph[1] = y;
     else
@@ -518,15 +518,17 @@ void rct_to_sph(const vec4 rct, vec4 sph) {
     else
         sph[0] = rct[1] >= 0.0 ? 0.0 : -500.0;
 
+#ifndef DSPBPTK_NO_WARNING
     if (!isfinite(x) || !isfinite(y))
         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct[0], rct[1], rct[2], x, y, sph[0], sph[1]);
+#endif
 }
 
 void sph_to_rct(const vec4 sph, vec4 rct) {
-    rct[2] = sin(sph[1] / 500.0 * M_PI);
+    rct[2] = sin(sph[1] * (M_PI / 500.0));
     const double r = sqrt(1.0 - rct[2] * rct[2]);
-    rct[0] = sin(sph[0] / 500.0 * M_PI) * r;
-    rct[1] = cos(sph[0] / 500.0 * M_PI) * r;
+    rct[0] = sin(sph[0] * (M_PI / 500.0)) * r;
+    rct[1] = cos(sph[0] * (M_PI / 500.0)) * r;
 }
 
 void set_rot_mat(const vec4 rct_vec, mat4x4 rot) {
