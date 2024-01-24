@@ -498,9 +498,7 @@ void dspbptk_building_copy(building_t* dst, const building_t* src, size_t N, siz
     }
 }
 
-// transf
-
-void rct_to_sph(vec4 rct, vec4 sph) {
+void rct_to_sph(const vec4 rct, vec4 sph) {
     sph[2] = 0.0;
     sph[3] = 1.0;
     // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
@@ -524,21 +522,23 @@ void rct_to_sph(vec4 rct, vec4 sph) {
         fprintf(stderr, "Math warning: %1.15lf,%1.15lf,%1.15lf -> %1.15lf,%1.15lf -> %1.15lf,%1.15lf\n", rct[0], rct[1], rct[2], x, y, sph[0], sph[1]);
 }
 
-void sph_to_rct(vec4 sph, vec4 rct) {
+void sph_to_rct(const vec4 sph, vec4 rct) {
     rct[2] = sin(sph[1] / 500.0 * M_PI);
     const double r = sqrt(1.0 - rct[2] * rct[2]);
     rct[0] = sin(sph[0] / 500.0 * M_PI) * r;
     rct[1] = cos(sph[0] / 500.0 * M_PI) * r;
-    vec3_normalize(rct);
 }
 
-void set_rot_mat(vec4 rct_vec, mat4x4 rot) {  // 必须传入零矩阵
+void set_rot_mat(const vec4 rct_vec, mat4x4 rot) {
     rot[1][0] = rct_vec[0];
     rot[1][1] = rct_vec[1];
     rot[1][2] = rct_vec[2];
-    rot[2][2] = 1.0;  // rot[2] = {0.0, 0.0, 1.0, 0.0};
+    rot[2][0] = 0.0;
+    rot[2][1] = 0.0;
+    rot[2][2] = 1.0;
     vec3_cross(rot[0], rot[1], rot[2]);
     vec3_cross(rot[2], rot[0], rot[1]);
+    // 这里的normalize不能去掉，因为cross得到的不是单位向量
     vec3_normalize(rot[0]);
     vec3_normalize(rot[1]);
     vec3_normalize(rot[2]);
@@ -558,9 +558,6 @@ void dspbptk_building_localOffset_rotation(building_t* building, mat4x4 rot) {
     vec4 rct_offset2_new;
     vec3_dot_mat3x3(rct_offset_new, rct_offset_old, rot);
     vec3_dot_mat3x3(rct_offset2_new, rct_offset2_old, rot);
-
-    vec3_normalize(rct_offset_new);
-    vec3_normalize(rct_offset2_new);
 
     rct_to_sph(rct_offset_new, building->localOffset);
     rct_to_sph(rct_offset2_new, building->localOffset2);

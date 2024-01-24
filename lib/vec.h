@@ -6,4 +6,5 @@ typedef f64_t mat4x4[4][4];
 
 void vec3_cross(vec4 c, vec4 a, vec4 b);
 void vec3_dot_mat3x3(vec4 b, vec4 a, mat4x4 m);
+double vec3_length(vec4 a);
 void vec3_normalize(vec4 a);

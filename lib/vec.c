@@ -14,8 +14,12 @@ void vec3_dot_mat3x3(vec4 r, vec4 a, mat4x4 m) {
     r[2] = a[0] * m[0][2] + a[1] * m[1][2] + a[2] * m[2][2];
 }
 
+double vec3_length(vec4 a) {
+    return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+}
+
 void vec3_normalize(vec4 r) {
-    double length = sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]);
+    double length = vec3_length(r);
     r[0] /= length;
     r[1] /= length;
     r[2] /= length;
