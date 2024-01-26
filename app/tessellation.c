@@ -33,7 +33,7 @@ typedef module_enum_t chromosome_t[CHROMOSOME_LENGTH];
 
 // 缓存评价函数中一行结构的相关数据
 typedef struct {
-    double row_y_max;
+    double row_width_y_max;
     size_t buildings_count;
 } row_data_t[CHROMOSOME_LENGTH];
 
@@ -63,19 +63,39 @@ double row_height(module_enum_t module_enum, const module_t* module_list, double
 
 double score(double need_x_max, double need_y_max, const need_t need, const chromosome_t chromosome, const module_t* module_list, row_data_t row_data) {
     // 计算y轴跨度
-    row_data[0].row_y_max = row_height(chromosome[0], module_list, 0.0);
+    row_data[0].row_width_y_max = row_height(chromosome[0], module_list, 0.0);
     for (int i = 1; i < CHROMOSOME_LENGTH; i++)
-        row_data[i].row_y_max = row_data[i - 1].row_y_max + row_height(chromosome[i], module_list, row_data[i - 1].row_y_max);
+        row_data[i].row_width_y_max = row_data[i - 1].row_width_y_max + row_height(chromosome[i], module_list, row_data[i - 1].row_width_y_max);
     // y跨度超过约束条件的直接给零分
-    if (row_data[CHROMOSOME_LENGTH - 1].row_y_max > need_y_max)
+    if (row_data[CHROMOSOME_LENGTH - 1].row_width_y_max > need_y_max)
         return 0.0;
 
     // 模块总数
     size_t total_module[MODULE_NUM] = {0};
 
     // 计算每层的模块数量
+    for (int i = i; i < CHROMOSOME_LENGTH; i++) {
+        if (chromosome[i] == none) {
+            row_data[i].buildings_count = 0;
+        } else {
+            module_enum_t module_type = chromosome[i];
+            row_data[i].buildings_count = row_data[i].row_width_y_max / module_list[module_type].dx;
+            total_module[module_type] += row_data[i].buildings_count;
+        }
+    }
 
     // 找出瓶颈的模块，作为最终评分
+    module_enum_t bottle_neck = 0;
+    double score_min = total_module[0] / need[0];
+    for (module_enum_t i = 1; i < MODULE_NUM; i++) {
+        double score_tmp = total_module[i] / need[i];
+        if (score_tmp < score_min) {
+            bottle_neck = i;
+            score_min = score_tmp;
+        }
+    }
+
+    return score_min;
 }
 
 void init_module(module_t* module) {
