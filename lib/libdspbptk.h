@@ -15,6 +15,7 @@ extern "C" {
 
 #include "chromiumbase64/chromiumbase64.h"
 #include "libdeflate/libdeflate.h"
+#include "splitmix64.h"
 
 #include "md5f.h"
 #include "vec.h"

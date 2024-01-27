@@ -10,16 +10,19 @@ else
 endif
 
 CC := gcc
+
 OBJ_opt := app/opt.o
 OBJ_IFL := app/IFL.o
+OBJ_tessellation := app/tessellation.o
+
 OBJ_LIBDSPBPTK = $(patsubst %.c, %.o, $(wildcard lib/*.c lib/libdeflate/lib/*.c lib/libdeflate/lib/*/*.c lib/chromiumbase64/*.c))
 
 CFLAGS := -fexec-charset=GBK -Wall -lm
-CFLAGS += -O3 -static -s -march=x86-64 -mtune=generic -mavx2 -flto
+CFLAGS += -O3 -static -s -march=x86-64 -mtune=generic -mavx2 -flto -fopenmp
 # CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_APP := -Ilib
 
-APPS = opt IFL
+APPS = opt IFL tessellation
 
 .PHONY: clean
 
@@ -31,6 +34,9 @@ $(OBJ_opt): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
 $(OBJ_IFL): %.o: %.c
+	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
+
+$(OBJ_tessellation): %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CFLAGS_APP) $<
 
 $(OBJ_LIBDSPBPTK): %.o: %.c
@@ -45,4 +51,4 @@ libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK)
 all: $(APPS) libdspbptk.a libdspbptk$(SHLIB_SUFFIX)
 
 clean:
-	rm -f $(OBJ_LIBDSPBPTK) opt* IFL* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
+	rm -f $(OBJ_LIBDSPBPTK) opt* IFL* tessellation* libdspbptk.a libdspbptk$(SHLIB_SUFFIX) app/*.o
