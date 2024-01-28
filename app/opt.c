@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
 
     // 蓝图解码
     uint64_t t_dec_0 = get_timestamp();
-    errorlevel = blueprint_decode(&coder, &bp, str_i);
+    errorlevel = blueprint_decode(&coder, &bp, str_i, strlen(str_i));
     uint64_t t_dec_1 = get_timestamp();
     fprintf(stderr, "dec time = %.3lf ms\n", d_t(t_dec_1, t_dec_0));
     if (errorlevel) {

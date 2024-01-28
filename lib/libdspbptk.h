@@ -15,9 +15,9 @@ extern "C" {
 
 #include "chromiumbase64/chromiumbase64.h"
 #include "libdeflate/libdeflate.h"
-#include "splitmix64.h"
 
 #include "md5f.h"
+#include "splitmix64.h"
 #include "vec.h"
 
 // 可选的宏
@@ -132,10 +132,12 @@ typedef struct {
 } blueprint_t;
 
 typedef struct {
-    void* buffer0;
-    void* buffer1;
-    struct libdeflate_compressor* p_compressor;
-    struct libdeflate_decompressor* p_decompressor;
+    void* buffer0;                                   // 用于蓝图编码解码
+    void* buffer1;                                   // 用于蓝图编码解码
+    void* buffer_string;                             // 涉及文件读写时延迟申请
+    size_t string_length;                            // 上一次编码/解码的蓝图字符串长度
+    struct libdeflate_compressor* p_compressor;      // gzip压缩
+    struct libdeflate_decompressor* p_decompressor;  // gzip解压
 } dspbptk_coder_t;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -147,9 +149,13 @@ typedef struct {
  *
  * @param blueprint 解析后的蓝图数据。使用结束后必须调用free_blueprint(blueprint)释放内存。
  * @param string 解析前的蓝图字符串
+ * @param string_length 解析前的蓝图字符串的长度，可以strlen(string)
  * @return dspbptk_error_t 错误代码
  */
-dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string);
+dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string, size_t string_length);
+
+// 同上，但是文件
+dspbptk_error_t blueprint_decode_file(dspbptk_coder_t* coder, blueprint_t* blueprint, FILE* fp);
 
 /**
  * @brief 蓝图编码。将blueprint_t编码成蓝图字符串
@@ -159,6 +165,9 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
  * @return dspbptk_error_t 错误代码
  */
 dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blueprint, char* string);
+
+// 同上，但是文件
+dspbptk_error_t blueprint_encode_file(dspbptk_coder_t* coder, const blueprint_t* blueprint, FILE* fp);
 
 /**
  * @brief 释放blueprint_t结构体中的内存

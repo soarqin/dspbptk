@@ -83,6 +83,12 @@ size_t gzip_declen(const unsigned char* in, size_t in_nbytes) {
 // dspbptk decode
 ////////////////////////////////////////////////////////////////////////////////
 
+size_t blueprint_file_size(FILE* fp) {
+    FILE* fp_end = fp;
+    fseek(fp_end, 0, SEEK_END);
+    return ftell(fp_end);
+}
+
 i64_t* dspbptk_calloc_parameters(size_t N) {
     return (i64_t*)calloc(N, sizeof(i64_t));
 }
@@ -107,7 +113,7 @@ building_t* dspbptk_calloc_buildings(size_t building_num) {
     return (building_t*)calloc(building_num, sizeof(building_t));
 }
 
-size_t read_bin_head(blueprint_t* blueprint, const void* ptr_bin) {
+size_t read_bin_head(blueprint_t* blueprint, const unsigned char* ptr_bin) {
     blueprint->version = *((i32_t*)(ptr_bin + bin_offset_version));
     blueprint->cursorOffsetX = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX));
     blueprint->cursorOffsetY = *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY));
@@ -119,7 +125,7 @@ size_t read_bin_head(blueprint_t* blueprint, const void* ptr_bin) {
     return bin_offset_areas;
 }
 
-size_t write_bin_head(const blueprint_t* blueprint, void* ptr_bin) {
+size_t write_bin_head(const blueprint_t* blueprint, unsigned char* ptr_bin) {
     *((i32_t*)(ptr_bin + bin_offset_version)) = (i32_t)blueprint->version;
     *((i32_t*)(ptr_bin + bin_offset_cursorOffsetX)) = (i32_t)blueprint->cursorOffsetX;
     *((i32_t*)(ptr_bin + bin_offset_cursorOffsetY)) = (i32_t)blueprint->cursorOffsetY;
@@ -131,7 +137,7 @@ size_t write_bin_head(const blueprint_t* blueprint, void* ptr_bin) {
     return bin_offset_areas;
 }
 
-size_t read_area(area_t* area, const void* ptr_bin) {
+size_t read_area(area_t* area, const unsigned char* ptr_bin) {
     area->index = *((i8_t*)(ptr_bin + area_offset_index));
     area->parentIndex = *((i8_t*)(ptr_bin + area_offset_parentIndex));
     area->tropicAnchor = *((i16_t*)(ptr_bin + area_offset_tropicAnchor));
@@ -143,7 +149,7 @@ size_t read_area(area_t* area, const void* ptr_bin) {
     return area_offset_next;
 }
 
-size_t write_area(const area_t* area, void* ptr_bin) {
+size_t write_area(const area_t* area, unsigned char* ptr_bin) {
     *((i8_t*)(ptr_bin + area_offset_index)) = (i8_t)area->index;
     *((i8_t*)(ptr_bin + area_offset_parentIndex)) = (i8_t)area->parentIndex;
     *((i16_t*)(ptr_bin + area_offset_tropicAnchor)) = (i16_t)area->tropicAnchor;
@@ -155,17 +161,17 @@ size_t write_area(const area_t* area, void* ptr_bin) {
     return area_offset_next;
 }
 
-size_t read_numBuildings(blueprint_t* blueprint, const void* ptr_bin) {
+size_t read_numBuildings(blueprint_t* blueprint, const unsigned char* ptr_bin) {
     blueprint->numBuildings = (size_t) * ((i32_t*)(ptr_bin));
     return sizeof(int32_t);
 }
 
-size_t write_numBuildings(const blueprint_t* blueprint, void* ptr_bin) {
+size_t write_numBuildings(const blueprint_t* blueprint, unsigned char* ptr_bin) {
     *((i32_t*)(ptr_bin)) = (i32_t)blueprint->numBuildings;
     return sizeof(int32_t);
 }
 
-size_t read_building(building_t* building, const void* ptr_bin) {
+size_t read_building(building_t* building, const unsigned char* ptr_bin) {
     building->index = *((i32_t*)(ptr_bin + building_offset_index));
     building->areaIndex = *((i8_t*)(ptr_bin + building_offset_areaIndex));
     building->localOffset[0] = *((f32_t*)(ptr_bin + building_offset_localOffset_x));
@@ -197,7 +203,7 @@ size_t read_building(building_t* building, const void* ptr_bin) {
     return building_offset_parameters + building->numParameters * sizeof(i32_t);
 }
 
-size_t write_building(const building_t* building, void* ptr_bin, const index_t* id_lut, size_t numBuildings) {
+size_t write_building(const building_t* building, unsigned char* ptr_bin, const index_t* id_lut, size_t numBuildings) {
     *((i32_t*)(ptr_bin + building_offset_index)) = get_idx(&building->index, id_lut, numBuildings);
     *((i8_t*)(ptr_bin + building_offset_areaIndex)) = (i8_t)building->areaIndex;
     *((f32_t*)(ptr_bin + building_offset_localOffset_x)) = (f32_t)(building->localOffset[0] / building->localOffset[3]);
@@ -271,12 +277,12 @@ size_t blueprint_write_head(const blueprint_t* blueprint, char* string) {
                    blueprint->desc == NULL ? "\0" : blueprint->desc);
 }
 
-dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string) {
+dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string, size_t string_length) {
     // 初始化结构体，置零
     memset(blueprint, 0, sizeof(blueprint_t));
 
-    // 获取输入的字符串的长度
-    const size_t string_length = strlen(string);
+    // 记录蓝图字符串的长度
+    coder->string_length = string_length;
 
     // 检查是不是蓝图：蓝图head标识为"BLUEPRINT:"，直接检查即可判定是否为蓝图
 #ifndef DSPBPTK_NO_ERROR
@@ -324,7 +330,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 
     // gzip >> bin
     size_t bin_length = gzip_declen(gzip, gzip_length);
-    void* bin = coder->buffer1;
+    unsigned char* bin = coder->buffer1;
     bin_length = gzip_dec(coder, gzip, gzip_length, bin);
 #ifndef DSPBPTK_NO_ERROR
     if (bin_length <= 3)
@@ -332,7 +338,7 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 #endif
 
     // 用于操作二进制流的指针
-    void* ptr_bin = bin;
+    unsigned char* ptr_bin = bin;
 
     // 解析二进制流的头
     ptr_bin += read_bin_head(blueprint, ptr_bin);
@@ -353,6 +359,14 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     }
 
     return no_error;
+}
+
+dspbptk_error_t blueprint_decode_file(dspbptk_coder_t* coder, blueprint_t* blueprint, FILE* fp) {
+    if (coder->buffer_string == NULL)
+        coder->buffer_string = calloc(BLUEPRINT_MAX_LENGTH, 1);
+    size_t string_length = blueprint_file_size(fp);
+    fread(coder->buffer_string, 1, string_length, fp);
+    return blueprint_decode(coder, blueprint, coder->buffer_string, string_length);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -389,9 +403,9 @@ i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t numBuildings) {
 
 dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blueprint, char* string) {
     // 初始化用于操作的几个指针
-    void* bin = coder->buffer0;
+    unsigned char* bin = coder->buffer0;
     char* ptr_str = string;
-    void* ptr_bin = bin;
+    unsigned char* ptr_bin = bin;
 
     // 输出head
     size_t head_length = blueprint_write_head(blueprint, ptr_str);
@@ -426,14 +440,25 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
 
     // gzip >> base64
     size_t base64_length = base64_enc(gzip, gzip_length, ptr_str);
+    ptr_str += base64_length;
 
     // 计算md5f
     char md5f_hex[MD5F_LENGTH + 1] = "\0";
     md5f_str(md5f_hex, coder->buffer1, string, head_length + base64_length);
-    ptr_str += base64_length;
     sprintf(ptr_str, "\"%s", md5f_hex);
+    ptr_str += MD5F_LENGTH;
+
+    coder->string_length = (size_t)(ptr_str - string);
 
     return no_error;
+}
+
+dspbptk_error_t blueprint_encode_file(dspbptk_coder_t* coder, const blueprint_t* blueprint, FILE* fp) {
+    if (coder->buffer_string == NULL)
+        coder->buffer_string = calloc(BLUEPRINT_MAX_LENGTH, 1);
+    dspbptk_error_t error_level = blueprint_encode(coder, blueprint, coder->buffer_string);
+    fwrite(coder->buffer_string, 1, coder->string_length, fp);
+    return error_level;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -459,6 +484,7 @@ void dspbptk_free_blueprint(blueprint_t* blueprint) {
 void dspbptk_init_coder(dspbptk_coder_t* coder) {
     coder->buffer0 = calloc(BLUEPRINT_MAX_LENGTH, 1);
     coder->buffer1 = calloc(BLUEPRINT_MAX_LENGTH, 1);
+    coder->buffer_string = NULL;
     coder->p_compressor = libdeflate_alloc_compressor(12);
     coder->p_decompressor = libdeflate_alloc_decompressor();
 }
@@ -470,6 +496,8 @@ void dspbptk_init_coder(dspbptk_coder_t* coder) {
 void dspbptk_free_coder(dspbptk_coder_t* coder) {
     free(coder->buffer0);
     free(coder->buffer1);
+    if (coder->buffer_string != NULL)
+        free(coder->buffer_string);
     libdeflate_free_compressor(coder->p_compressor);
     libdeflate_free_decompressor(coder->p_decompressor);
 }
