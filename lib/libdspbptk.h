@@ -207,6 +207,8 @@ typedef struct {
     i32_t index;
 } index_t;
 
+void dspbptk_blueprint_init(blueprint_t* blueprint);
+
 /**
  * @brief 生成从拓展标准的建筑id到原版标准的建筑index的查找表
  *

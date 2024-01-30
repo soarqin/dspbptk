@@ -367,7 +367,7 @@ dspbptk_error_t blueprint_decode_file(dspbptk_coder_t* coder, blueprint_t* bluep
     if (coder->buffer_string == NULL)
         coder->buffer_string = calloc(BLUEPRINT_MAX_LENGTH, 1);
     size_t string_length = blueprint_file_size(fp);
-    fgets(coder->buffer_string, string_length, fp);
+    fread(coder->buffer_string, 1, string_length, fp);
     return blueprint_decode(coder, blueprint, coder->buffer_string, string_length);
 }
 
@@ -447,8 +447,7 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     // 计算md5f
     char md5f_hex[MD5F_LENGTH + 1] = "\0";
     md5f_str(md5f_hex, coder->buffer1, string, head_length + base64_length);
-    sprintf(ptr_str, "\"%s", md5f_hex);
-    ptr_str += MD5F_LENGTH;
+    ptr_str += sprintf(ptr_str, "\"%s", md5f_hex);  // 注意这里实际长度是33，因为前面还有一个双引号
 
     coder->string_length = (size_t)(ptr_str - string);
 
@@ -507,6 +506,30 @@ void dspbptk_free_coder(dspbptk_coder_t* coder) {
 ////////////////////////////////////////////////////////////////////////////////
 // dspbptk api
 ////////////////////////////////////////////////////////////////////////////////
+
+void dspbptk_blueprint_init(blueprint_t* blueprint) {
+    // blueprint data
+    memset(blueprint, 0, sizeof(blueprint_t));
+    blueprint->version = 1;
+    blueprint->cursorOffsetX = 0;
+    blueprint->cursorOffsetY = 0;
+    blueprint->cursorTargetArea = 0;
+    blueprint->dragBoxSizeX = 1;
+    blueprint->dragBoxSizeY = 1;
+    blueprint->primaryAreaIdx = 0;
+
+    // area data
+    blueprint->numAreas = 1;
+    blueprint->areas = calloc(1, sizeof(area_t));
+    blueprint->areas[0].index = 0;
+    blueprint->areas[0].parentIndex = OBJ_NULL;
+    blueprint->areas[0].tropicAnchor = 0;
+    blueprint->areas[0].areaSegments = 200;
+    blueprint->areas[0].anchorLocalOffsetX = 0;
+    blueprint->areas[0].anchorLocalOffsetY = 0;
+    blueprint->areas[0].width = 1;
+    blueprint->areas[0].height = 1;
+}
 
 void dspbptk_resize(blueprint_t* blueprint, size_t N) {
     blueprint->numBuildings = N;
