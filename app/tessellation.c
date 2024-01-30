@@ -248,6 +248,8 @@ typedef struct {
  * @param cache_row_y_max 缓存某一行的y最大值，在此函数中被自动维护
  * @param cache_module_sum 缓存当前排列的模块总数，在此函数中被自动维护
  * @param index 搜索深度，也就是当前回溯到了哪一行
+ * @param best_chromosome_count 最优解有多少个
+ * @param best_chromosome 最优解列表，搜索完以后的最优解记录在此表中
  */
 void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_x_span, double max_y_span, const module_t module[MODULE_COUNT], const size_t max_module_count[MODULE_COUNT], module_enum_t chromosome[CHROMOSOME_LENGTH], double cache_row_y_max[CHROMOSOME_LENGTH], size_t cache_module_sum[CHROMOSOME_LENGTH][MODULE_COUNT], int64_t index, size_t* best_chromosome_count, best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME]) {  // 2024/01/30 喜欢一行300+字符吗，我故意的 :)
     for (module_enum_t module_enum = 0; module_enum < MODULE_COUNT; module_enum++) {
