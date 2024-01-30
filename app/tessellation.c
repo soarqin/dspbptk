@@ -7,7 +7,7 @@
 
 #define CHROMOSOME_LENGTH 64
 
-// 枚举所有结构
+// 枚举所有结构，按建筑的itemId顺序
 typedef enum {
     assembler,
     // refine,
@@ -17,6 +17,15 @@ typedef enum {
     // lab,
     MODULE_COUNT
 } module_enum_t;
+
+const char* MODULE_PATH[MODULE_COUNT] = {
+    "module\\dense_unit_assembler.txt",
+    // "module\\dense_unit_refine.txt",
+    // "module\\dense_unit_collider.txt",
+    "module\\dense_unit_smelter.txt",
+    // "module\\dense_unit_chemical.txt",
+    // "module\\dense_unit_lab.txt",
+};
 
 typedef struct {
     double dx;
@@ -118,7 +127,7 @@ double objective_score(size_t cache_module_sum[MODULE_COUNT], const double need[
  *
  * @param chromosome 染色体，可以表达一个唯一的建筑排列（遗传算法那个）
  * @param length 染色体的有效长度
- * @return size_t 主观评分，正比于排列的复杂度，越低越简洁（主观上约好看）
+ * @return size_t 主观评分，正比于排列的复杂度，越低越简洁（主观上越好看）
  */
 size_t subjective_score(const module_enum_t chromosome[CHROMOSOME_LENGTH], size_t length) {
     size_t score = 0;
