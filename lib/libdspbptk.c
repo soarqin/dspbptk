@@ -84,9 +84,11 @@ size_t gzip_declen(const unsigned char* in, size_t in_nbytes) {
 ////////////////////////////////////////////////////////////////////////////////
 
 size_t blueprint_file_size(FILE* fp) {
-    FILE* fp_end = fp;
-    fseek(fp_end, 0, SEEK_END);
-    return ftell(fp_end);
+    size_t offset_backup = ftell(fp);
+    fseek(fp, 0, SEEK_END);
+    size_t file_size = ftell(fp);
+    fseek(fp, offset_backup, SEEK_SET);
+    return file_size;
 }
 
 i64_t* dspbptk_calloc_parameters(size_t N) {
@@ -365,7 +367,7 @@ dspbptk_error_t blueprint_decode_file(dspbptk_coder_t* coder, blueprint_t* bluep
     if (coder->buffer_string == NULL)
         coder->buffer_string = calloc(BLUEPRINT_MAX_LENGTH, 1);
     size_t string_length = blueprint_file_size(fp);
-    fread(coder->buffer_string, 1, string_length, fp);
+    fgets(coder->buffer_string, string_length, fp);
     return blueprint_decode(coder, blueprint, coder->buffer_string, string_length);
 }
 

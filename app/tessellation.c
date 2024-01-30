@@ -19,10 +19,10 @@ typedef enum {
 } module_enum_t;
 
 const char* MODULE_PATH[MODULE_COUNT] = {
-    "module\\dense_unit_assembler.txt",
+    ".\\module\\dense_unit_assembler.txt",
     // "module\\dense_unit_refine.txt",
     // "module\\dense_unit_collider.txt",
-    "module\\dense_unit_smelter.txt",
+    ".\\module\\dense_unit_smelter.txt",
     // "module\\dense_unit_chemical.txt",
     // "module\\dense_unit_lab.txt",
 };
@@ -35,13 +35,35 @@ typedef struct {
     blueprint_t blueprint;
 } module_t;
 
-void init_module(module_t* module) {
-    // TODO 自动读取
-    module[smelter].dx = (2.31118 + 0.0001);
-    module[smelter].dy = (5.31118 + 0.0001);
-    module[assembler].dx = (3.0416 + 0.0001);
-    module[assembler].dy = (6.7416 + 0.0001);
-    // TODO 自动读取end
+size_t read_dspbptk_module(module_t* module) {
+    size_t argc = sscanf(module->blueprint.desc, "dspbptkmodule_-x_%lf_-y_%lf", &module->dx, &module->dy);
+    return argc;
+}
+
+// TODO 异常处理
+void init_module(module_t* module, dspbptk_coder_t* coder) {
+    // module[smelter].dx = (2.31118 + 0.0001);
+    // module[smelter].dy = (5.31118 + 0.0001);
+    // module[assembler].dx = (3.0416 + 0.0001);
+    // module[assembler].dy = (6.7416 + 0.0001);
+
+    for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
+        // 读取蓝图
+        FILE* fp = fopen(MODULE_PATH[i], "r");
+        dspbptk_error_t errorlevel = blueprint_decode_file(coder, &module[i].blueprint, fp);
+        puts(coder->buffer_string);
+        printf("errorlevel = %d, strlen = %lld\n", errorlevel, coder->string_length);
+        fclose(fp);
+        // 从简介读取模块信息
+        puts(module[i].blueprint.desc);
+        puts(module[i].blueprint.shortDesc);
+        size_t argc = read_dspbptk_module(&module[i]);
+        if (argc == 2) {
+            fprintf(stderr, "Registered dspbptk module: %s\n", MODULE_PATH[i]);
+        } else {
+            fprintf(stderr, "Error in registering dspbptk module \"%s\": %s\n", MODULE_PATH[i], module[i].blueprint.desc);
+        }
+    }
 
     for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
         module[i].pow2_half_dx = 0.25 * module[i].dx * module[i].dx;
@@ -195,9 +217,13 @@ int main(void) {
     double max_x_span = 100.0;
     double max_y_span = 200.0;
 
+    // 初始化蓝图编码器
+    dspbptk_coder_t coder;
+    dspbptk_init_coder(&coder);
+
     // 读取模块
     module_t module[MODULE_COUNT];
-    init_module(module);
+    init_module(module, &coder);
 
     // 预计算数据
     size_t max_module_count[MODULE_COUNT];
@@ -213,6 +239,9 @@ int main(void) {
     double cache_row_y_max[CHROMOSOME_LENGTH + 1] = {0.0};
     size_t cache_module_sum[CHROMOSOME_LENGTH + 1][MODULE_COUNT] = {0};
     search(need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_module_sum + 1, 0);
+
+    // 销毁蓝图编码器
+    dspbptk_free_coder(&coder);
 
     return 0;
 }
