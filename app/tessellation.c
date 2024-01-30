@@ -5,6 +5,7 @@
 
 #include "libdspbptk.h"
 
+#define SIZE_CACHE_CHROMOSOME 4096
 #define CHROMOSOME_LENGTH 64
 
 // 枚举所有结构，按建筑的itemId顺序
@@ -152,10 +153,10 @@ size_t subjective_score(const module_enum_t chromosome[CHROMOSOME_LENGTH], size_
 }
 
 void print_detail(double score, size_t score2, module_enum_t* chromosome, size_t length, size_t cache_module_sum[MODULE_COUNT]) {
-    printf("score=(%lf, %lld)\t", score, score2);
+    printf("score = {%lf, %lld}\tchromosome = ", score, score2);
     for (size_t i = 0; i < length; i++)
         printf("%d", chromosome[i]);
-    printf(" : ");
+    printf("\tmodule_sum = ");
     for (size_t i = 0; i < MODULE_COUNT; i++)
         printf("%lld,", cache_module_sum[i]);
     putchar('\n');
@@ -212,13 +213,13 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
     // 自动生成文件名
     char file_name[256] = {0};
     char* ptr_file_name = file_name;
-    ptr_file_name += sprintf(ptr_file_name, "result%lf,%lld_", score, score2);
+    ptr_file_name += sprintf(ptr_file_name, "{%lf,%lld}", score, score2);
     for (size_t i = 0; i < length; i++)
         ptr_file_name += sprintf(ptr_file_name, "%d", chromosome[i]);
     sprintf(ptr_file_name, ".txt");
 
     // 输出蓝图
-    printf("filename:%s\n", file_name);
+    printf("Output blueprint to \"%s\"\n", file_name);
     FILE* fp = fopen(file_name, "w");
     blueprint_encode_file(coder, &blueprint, fp);
     fclose(fp);
@@ -226,6 +227,13 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
     // 释放内存
     dspbptk_free_blueprint(&blueprint);
 }
+
+typedef struct {
+    double objective_score;
+    size_t subjective_score;
+    size_t length;
+    module_enum_t chromosome[CHROMOSOME_LENGTH];
+} best_chromosome_t;
 
 /**
  * @brief 穷举所有可能的排列，然后计算当前排列的理论最大产能。注意这是一个递归的函数
@@ -241,7 +249,7 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
  * @param cache_module_sum 缓存当前排列的模块总数，在此函数中被自动维护
  * @param index 搜索深度，也就是当前回溯到了哪一行
  */
-void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_x_span, double max_y_span, const module_t module[MODULE_COUNT], const size_t max_module_count[MODULE_COUNT], module_enum_t chromosome[CHROMOSOME_LENGTH], double cache_row_y_max[CHROMOSOME_LENGTH], size_t cache_module_sum[CHROMOSOME_LENGTH][MODULE_COUNT], int64_t index) {  // 2024/01/30 喜欢一行300+字符吗，我故意的 :)
+void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_x_span, double max_y_span, const module_t module[MODULE_COUNT], const size_t max_module_count[MODULE_COUNT], module_enum_t chromosome[CHROMOSOME_LENGTH], double cache_row_y_max[CHROMOSOME_LENGTH], size_t cache_module_sum[CHROMOSOME_LENGTH][MODULE_COUNT], int64_t index, size_t* best_chromosome_count, best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME]) {  // 2024/01/30 喜欢一行300+字符吗，我故意的 :)
     for (module_enum_t module_enum = 0; module_enum < MODULE_COUNT; module_enum++) {
         // 剪枝1：检查某种建筑是否过多
         if (cache_module_sum[index - 1][module_enum] >= max_module_count[module_enum])
@@ -254,19 +262,30 @@ void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_
         memcpy(cache_module_sum[index], cache_module_sum[index - 1], sizeof(size_t) * MODULE_COUNT);
         cache_module_sum[index][module_enum] += compute_row_module_count(cache_row_y_max[index - 1], module[module_enum].dx, max_x_span);
 
-        // 评分并输出
+        // 评分并记录
         static double max_objective_score = 0.0;
         double tmp_objective_score = objective_score(cache_module_sum[index], need, cache_row_y_max[index], max_y_span);
         if (tmp_objective_score >= max_objective_score) {
             size_t tmp_subjective_score = subjective_score(chromosome, index + 1);
             print_detail(tmp_objective_score, tmp_subjective_score, chromosome, index + 1, cache_module_sum[index]);
-            output_blueprint(coder, module, chromosome, index, max_x_span, tmp_objective_score, tmp_subjective_score);
-            max_objective_score = tmp_objective_score;
+            if (tmp_objective_score > max_objective_score) {
+                max_objective_score = tmp_objective_score;
+                (*best_chromosome_count) = 0;
+            }
+            if (*best_chromosome_count < SIZE_CACHE_CHROMOSOME) {
+                best_chromosome[*best_chromosome_count].objective_score = tmp_objective_score;
+                best_chromosome[*best_chromosome_count].subjective_score = tmp_subjective_score;
+                best_chromosome[*best_chromosome_count].length = index;
+                memcpy(best_chromosome[*best_chromosome_count].chromosome, chromosome, CHROMOSOME_LENGTH * sizeof(module_enum_t));
+                (*best_chromosome_count)++;
+            } else {
+                fprintf(stderr, "Warning: SIZE_CACHE_CHROMOSOME is no enough to record all results.\n");
+            }
         }
 
         // 剪枝2：检查y跨度是否过大
         if (cache_row_y_max[index] < max_y_span && index + 1 < CHROMOSOME_LENGTH) {
-            search(coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max, cache_module_sum, index + 1);  // 尾递归，gcc -O2或更高的优化等级可以优化成循环
+            search(coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max, cache_module_sum, index + 1, best_chromosome_count, best_chromosome);  // 尾递归，gcc -O2或更高的优化等级可以优化成循环
         }
     }
 }
@@ -294,11 +313,19 @@ int main(void) {
     putchar('\n');
 
     // 构造所有排列
+    size_t best_chromosome_count = 0;
+    best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME];
+
     module_enum_t chromosome[CHROMOSOME_LENGTH] = {0};
     // 注意这里的length+1是了为了读-1的下标，不能去掉
     double cache_row_y_max[CHROMOSOME_LENGTH + 1] = {0.0};
     size_t cache_module_sum[CHROMOSOME_LENGTH + 1][MODULE_COUNT] = {0};
-    search(&coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_module_sum + 1, 0);
+    search(&coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_module_sum + 1, 0, &best_chromosome_count, best_chromosome);
+
+    // 输出蓝图
+    for (int i = 0; i < best_chromosome_count; i++) {
+        output_blueprint(&coder, module, best_chromosome[i].chromosome, best_chromosome[i].length, max_x_span, best_chromosome[i].objective_score, best_chromosome[i].subjective_score);
+    }
 
     // 销毁蓝图编码器
     dspbptk_free_coder(&coder);
