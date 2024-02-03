@@ -48,6 +48,8 @@ libdspbptk.a: $(OBJ_LIBDSPBPTK)
 libdspbptk$(SHLIB_SUFFIX): $(OBJ_LIBDSPBPTK)
 	$(CC) -o $@ $(CFLAGS) -shared -fpic $^
 
+apps: $(APPS)
+
 all: $(APPS) libdspbptk.a libdspbptk$(SHLIB_SUFFIX)
 
 clean:

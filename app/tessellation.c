@@ -153,7 +153,7 @@ size_t subjective_score(const module_enum_t chromosome[CHROMOSOME_LENGTH], size_
 }
 
 void print_detail(double score, size_t score2, module_enum_t* chromosome, size_t length, size_t cache_module_sum[MODULE_COUNT]) {
-    printf("score = {%lf, %lld}\tchromosome = ", score, score2);
+    printf("score = (%lf, %lld)\tchromosome = ", score, score2);
     for (size_t i = 0; i < length; i++)
         printf("%d", chromosome[i]);
     printf("\tmodule_sum = ");
@@ -213,7 +213,7 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
     // 自动生成文件名
     char file_name[256] = {0};
     char* ptr_file_name = file_name;
-    ptr_file_name += sprintf(ptr_file_name, "{%lf,%lld}", score, score2);
+    ptr_file_name += sprintf(ptr_file_name, "(%lf,%lld)", score, score2);
     for (size_t i = 0; i < length; i++)
         ptr_file_name += sprintf(ptr_file_name, "%d", chromosome[i]);
     sprintf(ptr_file_name, ".txt");
