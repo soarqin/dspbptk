@@ -18,6 +18,14 @@ double vec3_length(vec4 a) {
     return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
 }
 
+double vec3_distance_2(vec4 a, vec4 b) {
+    vec4 tmp;
+    tmp[0] = a[0] - b[0];
+    tmp[1] = a[1] - b[1];
+    tmp[2] = a[2] - b[2];
+    return tmp[0] * tmp[0] + tmp[1] * tmp[1] + tmp[2] * tmp[2];
+}
+
 void vec3_normalize(vec4 r) {
     double length = vec3_length(r);
     r[0] /= length;

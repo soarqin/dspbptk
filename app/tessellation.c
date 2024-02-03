@@ -176,10 +176,9 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
     // 注意这里的length+1是了为了读-1的下标，不能去掉
     double _row_max_y[CHROMOSOME_LENGTH + 1] = {0.0};
     size_t _row_module_num[CHROMOSOME_LENGTH + 1] = {0};
-    size_t _module_sum[MODULE_COUNT] = {0};
+    size_t module_sum[MODULE_COUNT] = {0};
     double* row_max_y = _row_max_y + 1;
     size_t* row_module_num = _row_module_num + 1;
-    size_t* module_sum = _module_sum + 1;
 
     // 更新行数据
     for (int idx = 0; idx < length; idx++) {
@@ -200,6 +199,7 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
         double module_pos_y = row_max_y[idx] - 0.5 * module[chromosome[idx]].dy;
         double x_spacing = max_x_span / row_module_num[idx];
         for (int j = 0; j < row_module_num[idx]; j++) {  // 每个模块
+            // 复制并旋转建筑
             dspbptk_building_copy(&blueprint.buildings[building_index], module[chromosome[idx]].blueprint.buildings, module[chromosome[idx]].blueprint.numBuildings, building_index);
             double module_pos_x = (j + 0.5) * x_spacing;
             vec4 sph = {module_pos_x, module_pos_y};
@@ -207,8 +207,30 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
             sph_to_rct(sph, rct);
             mat4x4 rot;
             set_rot_mat(rct, rot);
-            for (int k = building_index; k < building_index + module[chromosome[idx]].blueprint.numBuildings; k++) {  // 每个建筑
+            for (int k = building_index; k < building_index + module[chromosome[idx]].blueprint.numBuildings; k++) {  // 当前模块每个建筑
                 dspbptk_building_localOffset_rotation(&blueprint.buildings[k], rot);
+            }
+            // 自动处理传送带吸附
+            const int auto_adsorption = 1;
+            if (auto_adsorption && j > 0) {
+                for (int k = building_index - module[chromosome[idx]].blueprint.numBuildings; k < building_index; k++) {  // 上个模块的每个建筑
+                    const module_enum_t belt_mk3 = 2003;
+                    if (blueprint.buildings[k].itemId == belt_mk3 && blueprint.buildings[k].tempOutputObjIdx == OBJ_NULL) {
+                        double min_dis2 = 4000000.0;
+                        size_t best_l = OBJ_NULL;
+                        for (int l = building_index; l < building_index + module[chromosome[idx]].blueprint.numBuildings; l++) {
+                            if (blueprint.buildings[l].itemId == belt_mk3) {
+                                double tmp_dis2 = vec3_distance_2(blueprint.buildings[k].localOffset, blueprint.buildings[l].localOffset);
+                                if (tmp_dis2 < min_dis2) {
+                                    min_dis2 = tmp_dis2;
+                                    best_l = l;
+                                }
+                            }
+                        }
+                        memcpy(blueprint.buildings[best_l].localOffset, blueprint.buildings[k].localOffset, sizeof(vec4));
+                        memcpy(blueprint.buildings[best_l].localOffset2, blueprint.buildings[k].localOffset2, sizeof(vec4));
+                    }
+                }
             }
             building_index += module[chromosome[idx]].blueprint.numBuildings;
         }
@@ -318,7 +340,7 @@ int main(void) {
 
     // 构造所有排列
     size_t best_chromosome_count = 0;
-    best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME];
+    best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME] = {{0.0, 0, 0, {0}}};
 
     module_enum_t chromosome[CHROMOSOME_LENGTH] = {0};
     // 注意这里的length+1是了为了读-1的下标，不能去掉
@@ -328,6 +350,7 @@ int main(void) {
     search(&coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_row_module_num + 1, cache_module_sum + 1, 0, &best_chromosome_count, best_chromosome);
 
     // 输出蓝图
+    fprintf(stderr, "best_chromosome_count = %lld\n", best_chromosome_count);
     for (int i = 0; i < best_chromosome_count; i++) {
         output_blueprint(&coder, module, best_chromosome[i].chromosome, best_chromosome[i].length, max_x_span, best_chromosome[i].objective_score, best_chromosome[i].subjective_score);
     }

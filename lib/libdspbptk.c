@@ -602,7 +602,7 @@ void set_rot_mat(const vec4 rct_vec, mat4x4 rot) {
 void dspbptk_building_localOffset_rotation(building_t* building, mat4x4 rot) {
     // z不参与坐标转换计算，单独处理避免精度丢失
     double z_old = building->localOffset[2];
-    double z2_old = building->localOffset[2];
+    double z2_old = building->localOffset2[2];
 
     vec4 rct_offset_old;
     vec4 rct_offset2_old;
