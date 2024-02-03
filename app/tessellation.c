@@ -43,23 +43,23 @@ size_t read_dspbptk_module(module_t* module) {
 
 // TODO 异常处理
 void init_module(module_t* module, dspbptk_coder_t* coder) {
-    for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
         // 读取蓝图
-        FILE* fp = fopen(MODULE_PATH[i], "r");
-        dspbptk_error_t errorlevel = blueprint_decode_file(coder, &module[i].blueprint, fp);
+        FILE* fp = fopen(MODULE_PATH[typ], "r");
+        dspbptk_error_t errorlevel = blueprint_decode_file(coder, &module[typ].blueprint, fp);
         fclose(fp);
         // 从简介读取模块信息
-        size_t argc = read_dspbptk_module(&module[i]);
+        size_t argc = read_dspbptk_module(&module[typ]);
         if (argc == 2) {
-            fprintf(stderr, "Registered dspbptk module: %s\n", MODULE_PATH[i]);
+            fprintf(stderr, "Registered dspbptk module: %s\n", MODULE_PATH[typ]);
         } else {
-            fprintf(stderr, "Error in registering dspbptk module \"%s\": %s\n", MODULE_PATH[i], module[i].blueprint.desc);
+            fprintf(stderr, "Error in registering dspbptk module \"%s\": %s\n", MODULE_PATH[typ], module[typ].blueprint.desc);
         }
     }
 
-    for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
-        module[i].pow2_half_dx = 0.25 * module[i].dx * module[i].dx;
-        module[i].area = module[i].dx * module[i].dy;
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
+        module[typ].pow2_half_dx = 0.25 * module[typ].dx * module[typ].dx;
+        module[typ].area = module[typ].dx * module[typ].dy;
     }
 }
 
@@ -92,12 +92,12 @@ double row_height_direct(double pow2_half_dx, double dy, double row_y_min) {
 void compute_max_module_count(size_t* max_module_count, module_t* module, double* need, double max_x_span, double max_y_span) {
     double area_max = (max_x_span * (500.0 / M_PI)) /*扇面面积*/ * sin(max_y_span * (M_PI / 500.0)) /*低纬度占比*/;
     double area_module_sum = 0.0;
-    for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
-        area_module_sum += module[i].area * need[i];
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
+        area_module_sum += module[typ].area * need[typ];
     }
     double k = area_max / area_module_sum;
-    for (module_enum_t i = 0; i < MODULE_COUNT; i++) {
-        max_module_count[i] = (size_t)ceil(k * need[i]);
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
+        max_module_count[typ] = (size_t)ceil(k * need[typ]);
     }
 }
 
@@ -128,8 +128,8 @@ double objective_score(size_t cache_module_sum[MODULE_COUNT], const double need[
         return 0.0;
     double min_score = cache_module_sum[0] / need[0];
     // 找出最缺的建筑作为分数
-    for (module_enum_t module_enum = 1; module_enum < MODULE_COUNT; module_enum++) {
-        double tmp_objective_score = cache_module_sum[module_enum] / need[module_enum];
+    for (module_enum_t typ = 1; typ < MODULE_COUNT; typ++) {
+        double tmp_objective_score = cache_module_sum[typ] / need[typ];
         if (tmp_objective_score < min_score)
             min_score = tmp_objective_score;
     }
@@ -145,68 +145,72 @@ double objective_score(size_t cache_module_sum[MODULE_COUNT], const double need[
  */
 size_t subjective_score(const module_enum_t chromosome[CHROMOSOME_LENGTH], size_t length) {
     size_t score = 0;
-    for (size_t i = 1; i < length; i++) {
-        if (chromosome[i - 1] != chromosome[i])
+    for (size_t idx = 1; idx < length; idx++) {
+        if (chromosome[idx - 1] != chromosome[idx])
             score++;
     }
     return score;
 }
 
+void update_row_data(double* row_max_y, size_t* row_module_num, size_t* module_sum, size_t idx, const module_enum_t typ, const module_t module[MODULE_COUNT], const double max_x_span) {
+    row_max_y[idx] = row_max_y[idx - 1] + row_height_direct(module[typ].pow2_half_dx, module[typ].dy, row_max_y[idx - 1]);
+    row_module_num[idx] = compute_row_module_count(row_max_y[idx], module[typ].dx, max_x_span);
+    module_sum[typ] += row_module_num[idx];
+}
+
 void print_detail(double score, size_t score2, module_enum_t* chromosome, size_t length, size_t cache_module_sum[MODULE_COUNT]) {
     printf("score = (%lf, %lld)\tchromosome = ", score, score2);
-    for (size_t i = 0; i < length; i++)
-        printf("%d", chromosome[i]);
+    for (size_t idx = 0; idx < length; idx++)
+        printf("%d", chromosome[idx]);
     printf("\tmodule_sum = ");
-    for (size_t i = 0; i < MODULE_COUNT; i++)
-        printf("%lld,", cache_module_sum[i]);
+    for (size_t typ = 0; typ < MODULE_COUNT; typ++)
+        printf("%lld,", cache_module_sum[typ]);
     putchar('\n');
 }
 
-void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT], const module_enum_t* chromosome, size_t length, size_t max_x_span, double score, size_t score2) {
+void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT], const module_enum_t* chromosome, size_t length, double max_x_span, double score, size_t score2) {
     // 声明变量，申请内存，或者一些统计数据
     blueprint_t blueprint;
     dspbptk_blueprint_init(&blueprint);
 
+    // 注意这里的length+1是了为了读-1的下标，不能去掉
     double _row_max_y[CHROMOSOME_LENGTH + 1] = {0.0};
-    double* row_max_y = _row_max_y + 1;
     size_t _row_module_num[CHROMOSOME_LENGTH + 1] = {0};
+    size_t _module_sum[MODULE_COUNT] = {0};
+    double* row_max_y = _row_max_y + 1;
     size_t* row_module_num = _row_module_num + 1;
-    size_t module_sum[MODULE_COUNT] = {0};
+    size_t* module_sum = _module_sum + 1;
 
-    // 计算每一行有多少模块
-    for (int i = 0; i < length; i++) {
-        // 计算当前行的y最大处的值
-        row_max_y[i] = row_max_y[i - 1] + row_height_direct(module[chromosome[i]].pow2_half_dx, module[chromosome[i]].dy, row_max_y[i - 1]);
-        // 计算当前行模块数量
-        row_module_num[i] = compute_row_module_count(row_max_y[i], module[chromosome[i]].dx, max_x_span);
-        module_sum[chromosome[i]] += row_module_num[i];
+    // 更新行数据
+    for (int idx = 0; idx < length; idx++) {
+        update_row_data(row_max_y, row_module_num, module_sum, idx, chromosome[idx], module, max_x_span);
     }
 
     // 计算这些模块等价多少建筑
     size_t building_count = 0;
-    for (module_enum_t module_enum = 0; module_enum < MODULE_COUNT; module_enum++) {
-        building_count += module[module_enum].blueprint.numBuildings * module_sum[module_enum];
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
+        building_count += module[typ].blueprint.numBuildings * module_sum[typ];
     }
 
     // 生成蓝图
     dspbptk_resize(&blueprint, building_count);
 
-    size_t index = 0;
-    for (int i = 0; i < length; i++) {  // 每一行
-        double module_pos_y = row_max_y[i] - 0.5 * module[chromosome[i]].dy;
-        double x_spacing = max_x_span / row_module_num[i];
-        for (int j = 0; j < row_module_num[i]; j++) {  // 每个模块
-            dspbptk_building_copy(&blueprint.buildings[index], module[chromosome[i]].blueprint.buildings, module[chromosome[i]].blueprint.numBuildings, index);
+    size_t building_index = 0;
+    for (int idx = 0; idx < length; idx++) {  // 每一行
+        double module_pos_y = row_max_y[idx] - 0.5 * module[chromosome[idx]].dy;
+        double x_spacing = max_x_span / row_module_num[idx];
+        for (int j = 0; j < row_module_num[idx]; j++) {  // 每个模块
+            dspbptk_building_copy(&blueprint.buildings[building_index], module[chromosome[idx]].blueprint.buildings, module[chromosome[idx]].blueprint.numBuildings, building_index);
             double module_pos_x = (j + 0.5) * x_spacing;
             vec4 sph = {module_pos_x, module_pos_y};
             vec4 rct;
             sph_to_rct(sph, rct);
             mat4x4 rot;
             set_rot_mat(rct, rot);
-            for (int k = index; k < index + module[chromosome[i]].blueprint.numBuildings; k++) {  // 每个建筑
+            for (int k = building_index; k < building_index + module[chromosome[idx]].blueprint.numBuildings; k++) {  // 每个建筑
                 dspbptk_building_localOffset_rotation(&blueprint.buildings[k], rot);
             }
-            index += module[chromosome[i]].blueprint.numBuildings;
+            building_index += module[chromosome[idx]].blueprint.numBuildings;
         }
     }
 
@@ -247,29 +251,27 @@ typedef struct {
  * @param max_module_count 当前输入参数的约束下，每种模块的数量上界，搜索环境初始化时自动计算
  * @param cache_row_y_max 缓存某一行的y最大值，在此函数中被自动维护
  * @param cache_module_sum 缓存当前排列的模块总数，在此函数中被自动维护
- * @param index 搜索深度，也就是当前回溯到了哪一行
+ * @param idx 搜索深度，也就是当前回溯到了哪一行
  * @param best_chromosome_count 最优解有多少个
  * @param best_chromosome 最优解列表，搜索完以后的最优解记录在此表中
  */
-void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_x_span, double max_y_span, const module_t module[MODULE_COUNT], const size_t max_module_count[MODULE_COUNT], module_enum_t chromosome[CHROMOSOME_LENGTH], double cache_row_y_max[CHROMOSOME_LENGTH], size_t cache_module_sum[CHROMOSOME_LENGTH][MODULE_COUNT], int64_t index, size_t* best_chromosome_count, best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME]) {  // 2024/01/30 喜欢一行300+字符吗，我故意的 :)
-    for (module_enum_t module_enum = 0; module_enum < MODULE_COUNT; module_enum++) {
+void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_x_span, double max_y_span, const module_t module[MODULE_COUNT], const size_t max_module_count[MODULE_COUNT], module_enum_t chromosome[CHROMOSOME_LENGTH], double cache_row_y_max[CHROMOSOME_LENGTH], size_t cache_row_module_num[CHROMOSOME_LENGTH], size_t cache_module_sum[CHROMOSOME_LENGTH][MODULE_COUNT], int64_t idx, size_t* best_chromosome_count, best_chromosome_t best_chromosome[SIZE_CACHE_CHROMOSOME]) {  // 2024/01/30 喜欢一行400+字符吗，我故意的 :)
+    for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
         // 剪枝1：检查某种建筑是否过多
-        if (cache_module_sum[index - 1][module_enum] >= max_module_count[module_enum])
+        if (cache_module_sum[idx - 1][typ] >= max_module_count[typ])
             continue;
 
-        chromosome[index] = module_enum;
-        // 缓存当前行的y坐标，避免继续向高纬度拓展建筑时重复计算坐标，并且可以剪枝
-        cache_row_y_max[index] = cache_row_y_max[index - 1] + row_height_direct(module[module_enum].pow2_half_dx, module[module_enum].dy, cache_row_y_max[index - 1]);
-        // 缓存模块总数统计，避免在评价函数中反复计算同一行的建筑数量，并且可以剪枝
-        memcpy(cache_module_sum[index], cache_module_sum[index - 1], sizeof(size_t) * MODULE_COUNT);
-        cache_module_sum[index][module_enum] += compute_row_module_count(cache_row_y_max[index - 1], module[module_enum].dx, max_x_span);
+        // 更新行数据
+        chromosome[idx] = typ;
+        memcpy(cache_module_sum[idx], cache_module_sum[idx - 1], sizeof(size_t) * MODULE_COUNT);
+        update_row_data(cache_row_y_max, cache_row_module_num, cache_module_sum[idx], idx, typ, module, max_x_span);
 
         // 评分并记录
         static double max_objective_score = 0.0;
-        double tmp_objective_score = objective_score(cache_module_sum[index], need, cache_row_y_max[index], max_y_span);
+        double tmp_objective_score = objective_score(cache_module_sum[idx], need, cache_row_y_max[idx], max_y_span);
         if (tmp_objective_score >= max_objective_score) {
-            size_t tmp_subjective_score = subjective_score(chromosome, index + 1);
-            print_detail(tmp_objective_score, tmp_subjective_score, chromosome, index + 1, cache_module_sum[index]);
+            size_t tmp_subjective_score = subjective_score(chromosome, idx + 1);
+            print_detail(tmp_objective_score, tmp_subjective_score, chromosome, idx + 1, cache_module_sum[idx]);
             if (tmp_objective_score > max_objective_score) {
                 max_objective_score = tmp_objective_score;
                 (*best_chromosome_count) = 0;
@@ -277,7 +279,7 @@ void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_
             if (*best_chromosome_count < SIZE_CACHE_CHROMOSOME) {
                 best_chromosome[*best_chromosome_count].objective_score = tmp_objective_score;
                 best_chromosome[*best_chromosome_count].subjective_score = tmp_subjective_score;
-                best_chromosome[*best_chromosome_count].length = index;
+                best_chromosome[*best_chromosome_count].length = idx + 1;
                 memcpy(best_chromosome[*best_chromosome_count].chromosome, chromosome, CHROMOSOME_LENGTH * sizeof(module_enum_t));
                 (*best_chromosome_count)++;
             } else {
@@ -286,8 +288,8 @@ void search(dspbptk_coder_t* coder, const double need[MODULE_COUNT], double max_
         }
 
         // 剪枝2：检查y跨度是否过大
-        if (cache_row_y_max[index] < max_y_span && index + 1 < CHROMOSOME_LENGTH) {
-            search(coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max, cache_module_sum, index + 1, best_chromosome_count, best_chromosome);  // 尾递归，gcc -O2或更高的优化等级可以优化成循环
+        if (cache_row_y_max[idx] < max_y_span && idx + 1 < CHROMOSOME_LENGTH) {
+            search(coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max, cache_row_module_num, cache_module_sum, idx + 1, best_chromosome_count, best_chromosome);  // 尾递归，gcc -O2或更高的优化等级可以优化成循环
         }
     }
 }
@@ -296,7 +298,7 @@ int main(void) {
     // TODO 输入参数处理
     double need[MODULE_COUNT] = {2.0, 1.0};
     double max_x_span = 100.0;
-    double max_y_span = 200.0;
+    double max_y_span = 170.0;
 
     // 初始化蓝图编码器
     dspbptk_coder_t coder;
@@ -321,8 +323,9 @@ int main(void) {
     module_enum_t chromosome[CHROMOSOME_LENGTH] = {0};
     // 注意这里的length+1是了为了读-1的下标，不能去掉
     double cache_row_y_max[CHROMOSOME_LENGTH + 1] = {0.0};
+    size_t cache_row_module_num[CHROMOSOME_LENGTH + 1] = {0};
     size_t cache_module_sum[CHROMOSOME_LENGTH + 1][MODULE_COUNT] = {0};
-    search(&coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_module_sum + 1, 0, &best_chromosome_count, best_chromosome);
+    search(&coder, need, max_x_span, max_y_span, module, max_module_count, chromosome, cache_row_y_max + 1, cache_row_module_num + 1, cache_module_sum + 1, 0, &best_chromosome_count, best_chromosome);
 
     // 输出蓝图
     for (int i = 0; i < best_chromosome_count; i++) {
