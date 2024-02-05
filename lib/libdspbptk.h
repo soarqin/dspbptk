@@ -26,16 +26,6 @@ extern "C" {
 // #define DSPBPTK_NO_ERROR
 // #define DSPBPTK_DEBUG
 
-#ifdef DSPBPTK_DEBUG
-#define MSG(x) \
-    { puts("Message:\t" x); }
-#define DBG(x) \
-    { printf("Debug:\t" #x "=%1.18lf\n", (double)(x)); }
-#else
-#define MSG(x)
-#define DBG(x)
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////
 // dspbptk errorlevel
 ////////////////////////////////////////////////////////////////////////////////

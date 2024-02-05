@@ -45,8 +45,7 @@ size_t base64_declen(const char* base64, size_t base64_length) {
  * @return size_t 压缩后的二进制流长度
  */
 size_t gzip_enc(dspbptk_coder_t* coder, const unsigned char* in, size_t in_nbytes, unsigned char* out) {
-    size_t gzip_length = libdeflate_gzip_compress(
-        coder->p_compressor, in, in_nbytes, out, 0xffffffff);
+    size_t gzip_length = libdeflate_gzip_compress(coder->p_compressor, in, in_nbytes, out, 0xffffffff);
     return gzip_length;
 }
 
@@ -96,15 +95,15 @@ i64_t* dspbptk_calloc_parameters(size_t N) {
 }
 
 char* dspbptk_calloc_md5f(void) {
-    return (char*)calloc(MD5F_LENGTH + 1, sizeof(char));
+    return (char*)calloc(MD5F_LENGTH, sizeof(char));
 }
 
 char* dspbptk_calloc_shortdesc(void) {
-    return (char*)calloc(SHORTDESC_MAX_LENGTH + 1, sizeof(char));
+    return (char*)calloc(SHORTDESC_MAX_LENGTH, sizeof(char));
 }
 
 char* dspbptk_calloc_desc(void) {
-    return (char*)calloc(DESC_MAX_LENGTH + 1, sizeof(char));
+    return (char*)calloc(DESC_MAX_LENGTH, sizeof(char));
 }
 
 area_t* dspbptk_calloc_areas(size_t area_num) {
@@ -234,31 +233,24 @@ size_t write_building(const building_t* building, unsigned char* ptr_bin, const 
     return building_offset_parameters + building->numParameters * sizeof(i32_t);
 }
 
-dspbptk_error_t blueprint_read_head(blueprint_t* blueprint, const char* string) {
+size_t blueprint_read_head(blueprint_t* blueprint, const char* string) {
     blueprint->shortDesc = dspbptk_calloc_shortdesc();
     blueprint->desc = dspbptk_calloc_desc();
     // 注意此处读取不包含双引号
-    int argc = sscanf(string, "BLUEPRINT:0,%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",0,%" PRId64 ",%" PRId64 ".%" PRId64 ".%" PRId64 ".%" PRId64 ",%[^,],%[^\"]",
-                      &blueprint->layout,
-                      &blueprint->icons[0],
-                      &blueprint->icons[1],
-                      &blueprint->icons[2],
-                      &blueprint->icons[3],
-                      &blueprint->icons[4],
-                      &blueprint->time,
-                      &blueprint->gameVersion[0],
-                      &blueprint->gameVersion[1],
-                      &blueprint->gameVersion[2],
-                      &blueprint->gameVersion[3],
-                      blueprint->shortDesc,
-                      blueprint->desc);
-#ifndef DSPBPTK_NO_ERROR
-    // FIXME 这里似乎并不能很好的处理shortdesc或者desc为空的情况，需要优化错误判定
-    // if(argc != 13)
-    if (argc < 12)  // 暂时改成argument_count < 12，可能会漏掉一些本来应该报错的情况，虽然也只影响报错不影响解码就是了
-        return blueprint_head_broken;
-#endif
-    return no_error;
+    return sscanf(string, "BLUEPRINT:0,%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",0,%" PRId64 ",%" PRId64 ".%" PRId64 ".%" PRId64 ".%" PRId64 ",%[^,],%[^\"]",
+                  &blueprint->layout,
+                  &blueprint->icons[0],
+                  &blueprint->icons[1],
+                  &blueprint->icons[2],
+                  &blueprint->icons[3],
+                  &blueprint->icons[4],
+                  &blueprint->time,
+                  &blueprint->gameVersion[0],
+                  &blueprint->gameVersion[1],
+                  &blueprint->gameVersion[2],
+                  &blueprint->gameVersion[3],
+                  blueprint->shortDesc,
+                  blueprint->desc);
 }
 
 size_t blueprint_write_head(const blueprint_t* blueprint, char* string) {
@@ -308,18 +300,21 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
 
     // 解析MD5F(并校验)
 #ifndef DSPBPTK_NO_WARNING
-    char md5f_check[MD5F_LENGTH + 1] = "\0";
+    char md5f_check[MD5F_LENGTH] = "\0";
     md5f_str(md5f_check, coder->buffer1, string, head_length + 1 + base64_length);
     if (memcmp(md5f, md5f_check, MD5F_LENGTH) != 0)
-        fprintf(stderr, "Warning: MD5 abnormal!\nthis:\t%s\nactual:\t%s\n", md5f, md5f_check);
+        fprintf(stderr, "Warning: MD5 abnormal!\nthis:\t%32s\nactual:\t%32s\n", md5f, md5f_check);
 #endif
     blueprint->md5f = dspbptk_calloc_md5f();
     memcpy(blueprint->md5f, md5f, MD5F_LENGTH);
 
     // 解析head明文数据
-    dspbptk_error_t read_head_error = blueprint_read_head(blueprint, string);
-    if (read_head_error != no_error)
-        return read_head_error;
+    size_t argc = blueprint_read_head(blueprint, string);
+#ifndef DSPBPTK_NO_ERROR
+    // if(argc != 13)  // FIXME 这里似乎并不能很好的处理shortdesc或者desc为空的情况，需要优化错误判定
+    if (argc < 12)  // 暂时改成argument_count < 12，可能会漏掉一些本来应该报错的情况，虽然也只影响报错不影响解码就是了
+        return blueprint_head_broken;
+#endif
 
     // base64 >> gzip
     size_t gzip_length = base64_declen(base64, base64_length);
@@ -347,18 +342,16 @@ dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint,
     blueprint->areas = dspbptk_calloc_areas(blueprint->numAreas);
 
     // 解析区域数组
-    for (size_t i = 0; i < blueprint->numAreas; i++) {
+    for (size_t i = 0; i < blueprint->numAreas; i++)
         ptr_bin += read_area(&blueprint->areas[i], ptr_bin);
-    }
 
     // 解析建筑数量
     ptr_bin += read_numBuildings(blueprint, ptr_bin);
     blueprint->buildings = dspbptk_calloc_buildings(blueprint->numBuildings);
 
     // 解析建筑数组
-    for (size_t i = 0; i < blueprint->numBuildings; i++) {
+    for (size_t i = 0; i < blueprint->numBuildings; i++)
         ptr_bin += read_building(&blueprint->buildings[i], ptr_bin);
-    }
 
     return no_error;
 }
@@ -393,14 +386,13 @@ i32_t get_idx(const i64_t* ObjIdx, const index_t* id_lut, size_t numBuildings) {
     if (*ObjIdx == OBJ_NULL)
         return OBJ_NULL;
     index_t* p_id = bsearch(ObjIdx, id_lut, numBuildings, sizeof(index_t), cmp_id);
-    if (p_id == NULL) {
-#ifndef DSPBPTK_NO_WARNING
-        fprintf(stderr, "Warning: index %" PRId64 " no found! Reindex index to OBJ_NULL(-1).\n", *ObjIdx);
-#endif
-        return OBJ_NULL;
-    } else {
+    if (p_id != NULL)
         return p_id->index;
-    }
+
+#ifndef DSPBPTK_NO_WARNING  // 正常来说走不到这里，走到了说明index存在异常
+    fprintf(stderr, "Warning: index %" PRId64 " no found! Reindex index to OBJ_NULL(-1).\n", *ObjIdx);
+#endif
+    return OBJ_NULL;
 }
 
 dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blueprint, char* string) {
@@ -410,16 +402,15 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     unsigned char* ptr_bin = bin;
 
     // 输出head
-    size_t head_length = blueprint_write_head(blueprint, ptr_str);
-    ptr_str += head_length;
+    size_t head_length = blueprint_write_head(blueprint, ptr_str) - 1;
+    ptr_str += head_length + 1;
 
     // 编码bin head
     ptr_bin += write_bin_head(blueprint, ptr_bin);
 
     // 编码区域数组
-    for (size_t i = 0; i < blueprint->numAreas; i++) {
+    for (size_t i = 0; i < blueprint->numAreas; i++)
         ptr_bin += write_area(&blueprint->areas[i], ptr_bin);
-    }
 
     // 编码建筑总数
     ptr_bin += write_numBuildings(blueprint, ptr_bin);
@@ -429,9 +420,8 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     generate_lut(blueprint, id_lut);
 
     // 编码建筑数组
-    for (size_t i = 0; i < blueprint->numBuildings; i++) {
+    for (size_t i = 0; i < blueprint->numBuildings; i++)
         ptr_bin += write_building(&blueprint->buildings[i], ptr_bin, id_lut, blueprint->numBuildings);
-    }
 
     // 计算二进制流长度
     size_t bin_length = (size_t)(ptr_bin - bin);
@@ -445,9 +435,10 @@ dspbptk_error_t blueprint_encode(dspbptk_coder_t* coder, const blueprint_t* blue
     ptr_str += base64_length;
 
     // 计算md5f
-    char md5f_hex[MD5F_LENGTH + 1] = "\0";
-    md5f_str(md5f_hex, coder->buffer1, string, head_length + base64_length);
-    ptr_str += sprintf(ptr_str, "\"%s", md5f_hex);  // 注意这里实际长度是33，因为前面还有一个双引号
+    *ptr_str = '\"';
+    ptr_str += 1;
+    md5f_str(ptr_str, coder->buffer1, string, head_length + 1 + base64_length);
+    ptr_str += 32;
 
     coder->string_length = (size_t)(ptr_str - string);
 
@@ -471,10 +462,9 @@ void dspbptk_free_blueprint(blueprint_t* blueprint) {
     free(blueprint->desc);
     free(blueprint->md5f);
     free(blueprint->areas);
-    for (size_t i = 0; i < blueprint->numBuildings; i++) {
+    for (size_t i = 0; i < blueprint->numBuildings; i++)
         if (blueprint->buildings[i].numParameters > 0)
             free(blueprint->buildings[i].parameters);
-    }
     free(blueprint->buildings);
 }
 
@@ -561,15 +551,8 @@ void rct_to_sph(const vec4 rct, vec4 sph) {
     x = acos(rct[1] / sqrt(1.0 - rct[2] * rct[2])) * ((rct[0] >= 0.0) ? (250.0 / M_PI_2) : (-250.0 / M_PI_2));
 
     // 可能出现除0错误或者超过反三角函数定义域，必须处理这些特殊情况
-    if (isfinite(y))
-        sph[1] = y;
-    else
-        sph[1] = rct[2] >= 0.0 ? 250.0 : -250.0;
-
-    if (isfinite(x))
-        sph[0] = x;
-    else
-        sph[0] = rct[1] >= 0.0 ? 0.0 : -500.0;
+    sph[1] = isfinite(y) ? y : (rct[2] >= 0.0 ? 250.0 : -250.0);
+    sph[0] = isfinite(x) ? x : (rct[1] >= 0.0 ? 0.0 : -500.0);
 
 #ifndef DSPBPTK_NO_WARNING
     if (!isfinite(x) || !isfinite(y))

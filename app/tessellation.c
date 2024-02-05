@@ -20,12 +20,12 @@ typedef enum {
 } module_enum_t;
 
 const char* MODULE_PATH[MODULE_COUNT] = {
-    ".\\module\\dense_unit_assembler.txt",
-    // "module\\dense_unit_refine.txt",
-    // "module\\dense_unit_collider.txt",
-    ".\\module\\dense_unit_smelter.txt",
-    // "module\\dense_unit_chemical.txt",
-    // "module\\dense_unit_lab.txt",
+    ".\\module\\unit_assembler_1i1o.txt",
+    // "module\\unit_refine_1i1o.txt",
+    // "module\\unit_collider_1i1o.txt",
+    ".\\module\\unit_smelter_1i1o.txt",
+    // "module\\unit_chemical_1i1o.txt",
+    // "module\\unit_lab_1i1o.txt",
 };
 
 typedef struct {
