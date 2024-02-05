@@ -41,7 +41,6 @@ size_t read_dspbptk_module(module_t* module) {
     return argc;
 }
 
-// TODO 异常处理
 void init_module(module_t* module, dspbptk_coder_t* coder) {
     for (module_enum_t typ = 0; typ < MODULE_COUNT; typ++) {
         // 读取蓝图
@@ -215,21 +214,21 @@ void output_blueprint(dspbptk_coder_t* coder, const module_t module[MODULE_COUNT
             if (auto_adsorption && j > 0) {
                 for (int k = building_index - module[chromosome[idx]].blueprint.numBuildings; k < building_index; k++) {  // 上个模块的每个建筑
                     const module_enum_t belt_mk3 = 2003;
-                    if (blueprint.buildings[k].itemId == belt_mk3 && blueprint.buildings[k].tempOutputObjIdx == OBJ_NULL) {
-                        double min_dis2 = 4000000.0;
-                        size_t best_l = OBJ_NULL;
-                        for (int l = building_index; l < building_index + module[chromosome[idx]].blueprint.numBuildings; l++) {
-                            if (blueprint.buildings[l].itemId == belt_mk3) {
-                                double tmp_dis2 = vec3_distance_2(blueprint.buildings[k].localOffset, blueprint.buildings[l].localOffset);
-                                if (tmp_dis2 < min_dis2) {
-                                    min_dis2 = tmp_dis2;
-                                    best_l = l;
-                                }
-                            }
+                    if (blueprint.buildings[k].itemId != belt_mk3 || blueprint.buildings[k].tempOutputObjIdx != OBJ_NULL)
+                        continue;
+                    double min_dis2 = 4000000.0;
+                    size_t best_l = OBJ_NULL;
+                    for (int l = building_index; l < building_index + module[chromosome[idx]].blueprint.numBuildings; l++) {
+                        if (blueprint.buildings[l].itemId != belt_mk3)
+                            continue;
+                        double tmp_dis2 = vec3_distance_2(blueprint.buildings[k].localOffset, blueprint.buildings[l].localOffset);
+                        if (tmp_dis2 < min_dis2) {
+                            min_dis2 = tmp_dis2;
+                            best_l = l;
                         }
-                        memcpy(blueprint.buildings[best_l].localOffset, blueprint.buildings[k].localOffset, sizeof(vec4));
-                        memcpy(blueprint.buildings[best_l].localOffset2, blueprint.buildings[k].localOffset2, sizeof(vec4));
                     }
+                    memcpy(blueprint.buildings[best_l].localOffset, blueprint.buildings[k].localOffset, sizeof(vec4));
+                    memcpy(blueprint.buildings[best_l].localOffset2, blueprint.buildings[k].localOffset2, sizeof(vec4));
                 }
             }
             building_index += module[chromosome[idx]].blueprint.numBuildings;

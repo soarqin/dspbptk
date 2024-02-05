@@ -56,8 +56,6 @@ typedef enum {
 // dspbptk struct
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO 检查数据类型是否合理正确
-
 typedef int8_t i8_t;
 typedef int16_t i16_t;
 typedef int32_t i32_t;
