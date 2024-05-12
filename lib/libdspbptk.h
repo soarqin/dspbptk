@@ -7,18 +7,10 @@ extern "C" {
 
 #define _USE_MATH_DEFINES
 
-#include <inttypes.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "chromiumbase64/chromiumbase64.h"
-#include "libdeflate/libdeflate.h"
-
-#include "md5f.h"
-#include "splitmix64.h"
 #include "vec.h"
+
+#include <inttypes.h>
+#include <stdio.h>
 
 // 可选的宏
 

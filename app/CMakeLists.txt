@@ -1,6 +1,6 @@
 project(app C)
 
-foreach(proj bpopt bpupgrade)
+foreach(proj opt IFL tessellation replacetower)
     add_executable(${proj} ${proj}.c)
     target_include_directories(${proj} PRIVATE ../lib)
     target_link_libraries(${proj} PRIVATE dspbptk)

@@ -1,5 +1,16 @@
-#include "enum_offset.h"
 #include "libdspbptk.h"
+
+#include "enum_offset.h"
+
+#include "chromiumbase64/chromiumbase64.h"
+#include "libdeflate/libdeflate.h"
+
+#include "md5f.h"
+#include "splitmix64.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // 这些函数用于解耦dspbptk与底层库依赖，如果需要更换底层库时只要换掉这几个函数里就行
@@ -274,6 +285,8 @@ size_t blueprint_write_head(const blueprint_t* blueprint, char* string) {
 dspbptk_error_t blueprint_decode(dspbptk_coder_t* coder, blueprint_t* blueprint, const char* string, size_t string_length) {
     // 初始化结构体，置零
     memset(blueprint, 0, sizeof(blueprint_t));
+    if (string_length == 0)
+        string_length = strlen(string);
 
     // 记录蓝图字符串的长度
     coder->string_length = string_length;

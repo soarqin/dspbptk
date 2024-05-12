@@ -1,9 +1,11 @@
+#include "libdspbptk.h"
+
 #include <omp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "libdspbptk.h"
+#include <string.h>
+#include <math.h>
 
 #define SIZE_CACHE_CHROMOSOME 4096
 #define CHROMOSOME_LENGTH 64

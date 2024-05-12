@@ -1,7 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libdspbptk.h"
+
+void print_usage() {
+    fprintf(stderr, "Usage: replacetower <filename>\n");
+}
 
 int main(int argc, char* argv[]) {
     // dspbptk的错误值
@@ -9,7 +14,7 @@ int main(int argc, char* argv[]) {
 
     // 检查用户是否输入了文件名
     if(argc <= 1) {
-        fprintf(stderr, "Usage: bpupgrade <filename>\n");
+        print_usage();
         errorlevel = -1;
         goto error;
     }
@@ -35,7 +40,7 @@ int main(int argc, char* argv[]) {
     dspbptk_init_coder(&coder);
 
     // 蓝图解码
-    errorlevel = blueprint_decode(&coder, &bp, str_i);
+    errorlevel = blueprint_decode(&coder, &bp, str_i, 0);
     if(errorlevel) {
         goto error;
     }
